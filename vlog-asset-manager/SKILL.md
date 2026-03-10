@@ -1,6 +1,6 @@
 ---
-name: 安装
-description: 环境准备。安装依赖、配置 API Key、验证环境。触发词：安装、环境准备、初始化
+name: vlog-asset-manager
+description: reads through all video files in vlog folder and runs renaming based on timestamp and sorts into folders
 ---
 
 <!--

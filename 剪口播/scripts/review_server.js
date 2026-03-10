@@ -15,6 +15,9 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
+// Ensure Homebrew tools (ffmpeg, ffprobe, node) are on PATH
+process.env.PATH = `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH}`;
+
 const PORT = process.argv[2] || 8899;
 let VIDEO_FILE = process.argv[3] || findVideoFile();
 
@@ -57,7 +60,7 @@ const server = http.createServer((req, res) => {
         console.log(`📝 保存 ${deleteList.length} 个删除片段`);
 
         // 生成输出文件名
-        const baseName = path.basename(VIDEO_FILE, '.mp4');
+        const baseName = path.basename(VIDEO_FILE, path.extname(VIDEO_FILE));
         const outputFile = `${baseName}_cut.mp4`;
 
         // 执行剪辑
@@ -248,30 +251,35 @@ function executeFFmpegCut(input, deleteList, output) {
 
   console.log(`保留 ${keepSegments.length} 个片段，删除 ${mergedDelete.length} 个片段`);
 
-  // 生成 filter_complex（带 crossfade）
+  // 生成 filter_complex（视频 xfade + 音频 acrossfade，时长一致保持音画同步）
   let filters = [];
-  let vconcat = '';
 
   for (let i = 0; i < keepSegments.length; i++) {
     const seg = keepSegments[i];
     filters.push(`[0:v]trim=start=${seg.start.toFixed(3)}:end=${seg.end.toFixed(3)},setpts=PTS-STARTPTS[v${i}]`);
     filters.push(`[0:a]atrim=start=${seg.start.toFixed(3)}:end=${seg.end.toFixed(3)},asetpts=PTS-STARTPTS[a${i}]`);
-    vconcat += `[v${i}]`;
   }
 
-  // 视频直接 concat
-  filters.push(`${vconcat}concat=n=${keepSegments.length}:v=1:a=0[outv]`);
-
-  // 音频使用 acrossfade 逐个拼接（消除接缝咔声）
   if (keepSegments.length === 1) {
-    filters.push(`[a0]anull[outa]`);
+    filters.push('[v0]null[outv]');
+    filters.push('[a0]anull[outa]');
   } else {
-    let currentLabel = 'a0';
+    // 视频：xfade（与 acrossfade 时长一致，两者每个接缝均减少相同时间，保持同步）
+    let currentVLabel = 'v0';
+    let vOffset = 0;
     for (let i = 1; i < keepSegments.length; i++) {
-      const nextLabel = `a${i}`;
+      vOffset += (keepSegments[i-1].end - keepSegments[i-1].start) - crossfadeSec;
+      const outLabel = (i === keepSegments.length - 1) ? 'outv' : `vx${i}`;
+      filters.push(`[${currentVLabel}][v${i}]xfade=transition=fade:duration=${crossfadeSec.toFixed(3)}:offset=${vOffset.toFixed(3)}[${outLabel}]`);
+      currentVLabel = outLabel;
+    }
+
+    // 音频：acrossfade
+    let currentALabel = 'a0';
+    for (let i = 1; i < keepSegments.length; i++) {
       const outLabel = (i === keepSegments.length - 1) ? 'outa' : `amid${i}`;
-      filters.push(`[${currentLabel}][${nextLabel}]acrossfade=d=${crossfadeSec.toFixed(3)}:c1=tri:c2=tri[${outLabel}]`);
-      currentLabel = outLabel;
+      filters.push(`[${currentALabel}][a${i}]acrossfade=d=${crossfadeSec.toFixed(3)}:c1=tri:c2=tri[${outLabel}]`);
+      currentALabel = outLabel;
     }
   }
 

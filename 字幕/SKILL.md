@@ -1,6 +1,6 @@
 ---
 name: videocut:字幕
-description: 字幕生成与烧录。火山引擎转录→词典纠错→审核→烧录。触发词：加字幕、生成字幕、字幕
+description: 字幕生成与烧录。WhisperX本地转录→词典纠错→审核→烧录。触发词：加字幕、生成字幕、字幕
 ---
 
 <!--
@@ -13,54 +13,51 @@ pos: 后置 skill，剪辑完成后调用
 
 > 转录 → Agent校对 → 人工审核 → 烧录
 
-## 核心流程（总计约 8-15 分钟，含人工审核）
+## 核心流程（总计约 10-20 分钟，含人工审核）
 
 ```
-1. 提取音频 + 上传          ⏱ ~1min
+1. 提取音频                       ⏱ ~30s
     ↓
-2. 火山引擎转录（带热词）    ⏱ ~2min
+2. WhisperX 本地转录（带词典）     ⏱ ~3-8min（CPU），~1-2min（GPU）
     ↓
-3. Agent 自动校对            ⏱ ~3-5min
+3. Agent 自动校对                  ⏱ ~3-5min
     ↓
-4. 人工审核确认              ⏱ 取决于用户
+4. 人工审核确认                    ⏱ 取决于用户
     ↓
-5. 烧录字幕                  ⏱ ~1-2min
+5. 烧录字幕                        ⏱ ~1-2min
 ```
 
 ---
 
-## Step 1: 提取音频并上传
+## Step 1: 提取音频
 
 ```bash
-# 提取音频
+# 提取音频（WhisperX 直接读本地文件，无需上传）
 ffmpeg -i "video.mp4" -vn -acodec libmp3lame -y audio.mp3
-
-# 上传到 uguu.se（临时文件托管）
-curl -s -F "files[]=@audio.mp3" https://uguu.se/upload
-# 返回 URL 如: https://o.uguu.se/xxxxx.mp3
 ```
 
 ---
 
-## Step 2: 火山引擎转录（带热词）
+## Step 2: WhisperX 本地转录（带词典提示）
 
-转录脚本会**自动读取词典**作为热词，提高识别准确率：
+转录脚本会**自动读取词典**作为 initial_prompt，提高专业词汇识别率：
 
 ```bash
-# 词典位置: /Users/chengfeng/Desktop/AIos/剪辑Agent/.claude/skills/字幕/词典.txt
-# 脚本会自动加载
+# 词典位置: ~/.claude/skills/videocut/字幕/词典.txt
+SKILL_DIR="~/.claude/skills/videocut"
+DICT_FILE="$SKILL_DIR/字幕/词典.txt"
 
-bash ../剪口播/scripts/volcengine_transcribe.sh "https://o.uguu.se/xxxxx.mp3"
+python "$SKILL_DIR/剪口播/scripts/whisperx_transcribe.py" audio.mp3 auto "$DICT_FILE"
+# 输出: whisperx_result.json
+# language 参数: "en" 英语 | "zh" 中文 | "auto" 自动检测
 ```
 
 **词典格式**（每行一个词）：
 ```
+Claude Code
+MCP
+API
 skills
-Claude
-Agent
-成峰
-剪辑skills
-claude code
 ```
 
 ---
@@ -70,12 +67,13 @@ claude code
 ### 3.1 生成带时间戳的字幕
 
 ```javascript
-const result = JSON.parse(fs.readFileSync('volcengine_result.json'));
-const subtitles = result.utterances.map((u, i) => ({
+// WhisperX 格式: segments[].text/start/end，时间单位已是秒
+const result = JSON.parse(fs.readFileSync('whisperx_result.json'));
+const subtitles = result.segments.map((s, i) => ({
   id: i + 1,
-  text: u.text,
-  start: u.start_time / 1000,
-  end: u.end_time / 1000
+  text: s.text.trim(),
+  start: s.start,
+  end: s.end
 }));
 fs.writeFileSync('subtitles_with_time.json', JSON.stringify(subtitles, null, 2));
 ```

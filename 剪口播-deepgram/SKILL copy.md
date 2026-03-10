@@ -55,7 +55,7 @@ output/
     ↓
 2. WhisperX 本地转录（字级别时间戳，无需 API Key）
     ↓
-3. 生成字级别字幕 (subtitles_words.json) (默认跳过这一步)
+3. 生成字级别字幕 (subtitles_words.json)
     ↓
 4. AI 分析口误/静音，生成预选列表 (auto_selected.json)
     ↓

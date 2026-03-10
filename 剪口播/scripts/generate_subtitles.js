@@ -1,14 +1,18 @@
 #!/usr/bin/env node
 /**
- * 从火山引擎结果生成字级别字幕
+ * 从 WhisperX 结果生成字级别字幕
  *
- * 用法: node generate_subtitles.js <volcengine_result.json> [delete_segments.json]
+ * 用法: node generate_subtitles.js <whisperx_result.json> [delete_segments.json]
  * 输出: subtitles_words.json
+ *
+ * 输入格式 (WhisperX):
+ *   { segments: [{ start, end, text, words: [{ word, start, end, score }] }] }
+ * 注意: 时间戳单位为秒（不是毫秒）
  */
 
 const fs = require('fs');
 
-const resultFile = process.argv[2] || 'volcengine_result.json';
+const resultFile = process.argv[2] || 'whisperx_result.json';
 const deleteFile = process.argv[3];
 
 if (!fs.existsSync(resultFile)) {
@@ -18,17 +22,26 @@ if (!fs.existsSync(resultFile)) {
 
 const result = JSON.parse(fs.readFileSync(resultFile, 'utf8'));
 
-// 提取所有字
+// 提取所有词（WhisperX: segments[].words[].word，时间单位已是秒）
 const allWords = [];
-for (const utterance of result.utterances) {
-  if (utterance.words) {
-    for (const word of utterance.words) {
+for (const segment of result.segments || []) {
+  if (segment.words && segment.words.length > 0) {
+    for (const word of segment.words) {
+      // 跳过没有时间戳的词（对齐失败时偶发）
+      if (word.start == null || word.end == null) continue;
       allWords.push({
-        text: word.text,
-        start: word.start_time / 1000,
-        end: word.end_time / 1000
+        text: word.word.trim(),
+        start: word.start,
+        end: word.end
       });
     }
+  } else {
+    // 段落无字级时间戳时，退化为句子级
+    allWords.push({
+      text: (segment.text || '').trim(),
+      start: segment.start,
+      end: segment.end
+    });
   }
 }
 

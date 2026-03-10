@@ -1,4 +1,5 @@
 #!/bin/bash
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 #
 # 根据删除列表剪辑视频（filter_complex 精确剪辑）
 #
@@ -85,32 +86,35 @@ for (const seg of mergedSegs) {
 }
 console.error('删除总时长:', deletedTime.toFixed(2) + 's');
 
-// 生成 filter_complex（带 crossfade）
+// 生成 filter_complex（视频 xfade + 音频 acrossfade，时长一致保持音画同步）
 let filters = [];
-let vconcat = '';
-let aLabels = [];
 
 for (let i = 0; i < keepSegs.length; i++) {
   const seg = keepSegs[i];
   filters.push('[0:v]trim=start=' + seg.start.toFixed(3) + ':end=' + seg.end.toFixed(3) + ',setpts=PTS-STARTPTS[v' + i + ']');
   filters.push('[0:a]atrim=start=' + seg.start.toFixed(3) + ':end=' + seg.end.toFixed(3) + ',asetpts=PTS-STARTPTS[a' + i + ']');
-  vconcat += '[v' + i + ']';
-  aLabels.push('a' + i);
 }
 
-// 视频直接 concat
-filters.push(vconcat + 'concat=n=' + keepSegs.length + ':v=1:a=0[outv]');
-
-// 音频使用 acrossfade 逐个拼接
 if (keepSegs.length === 1) {
+  filters.push('[v0]null[outv]');
   filters.push('[a0]anull[outa]');
 } else {
-  let currentLabel = 'a0';
+  // 视频：xfade（与 acrossfade 时长一致，两者每个接缝均减少相同时间，保持同步）
+  let currentVLabel = 'v0';
+  let vOffset = 0;
   for (let i = 1; i < keepSegs.length; i++) {
-    const nextLabel = 'a' + i;
+    vOffset += (keepSegs[i-1].end - keepSegs[i-1].start) - crossfadeSec;
+    const outLabel = (i === keepSegs.length - 1) ? 'outv' : 'vx' + i;
+    filters.push('[' + currentVLabel + '][v' + i + ']xfade=transition=fade:duration=' + crossfadeSec.toFixed(3) + ':offset=' + vOffset.toFixed(3) + '[' + outLabel + ']');
+    currentVLabel = outLabel;
+  }
+
+  // 音频：acrossfade
+  let currentALabel = 'a0';
+  for (let i = 1; i < keepSegs.length; i++) {
     const outLabel = (i === keepSegs.length - 1) ? 'outa' : 'amid' + i;
-    filters.push('[' + currentLabel + '][' + nextLabel + ']acrossfade=d=' + crossfadeSec.toFixed(3) + ':c1=tri:c2=tri[' + outLabel + ']');
-    currentLabel = outLabel;
+    filters.push('[' + currentALabel + '][a' + i + ']acrossfade=d=' + crossfadeSec.toFixed(3) + ':c1=tri:c2=tri[' + outLabel + ']');
+    currentALabel = outLabel;
   }
 }
 

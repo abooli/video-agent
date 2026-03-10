@@ -2,34 +2,34 @@
 架构守护者：一旦本文件夹有任何变化（新增/删除/重命名文件），请更新此文件
 -->
 
-# 用户习惯
+# User Preferences
 
-用户个人偏好，AI 审核时参考。
+Personal editing preferences, read by AI before every review session.
 
-## 文件清单
+## File index
 
-| 文件 | 类型 | 内容 |
-|------|------|------|
-| 1-核心原则.md | 原则 | 删前保后 |
-| 2-语气词检测.md | 偏好 | 嗯啊呃 + 删除边界 |
-| 3-静音段处理.md | 阈值 | ≤0.5s忽略, 0.5-1s可选, >1s建议删 |
-| 4-重复句检测.md | 偏好 | 相邻句子开头≥5字相同，删短的 |
-| 5-卡顿词.md | 偏好 | 那个那个、就是就是 |
-| 6-句内重复检测.md | 偏好 | A+中间+A 模式 |
-| 7-连续语气词.md | 偏好 | 嗯啊、啊呃 |
-| 8-重说纠正.md | 偏好 | 部分重复、否定纠正、词被打断 |
-| 9-残句检测.md | 偏好 | 话说一半被打断 |
+| File | Type | Content |
+|------|------|---------|
+| 1-核心原则.md | Principle | Keep the later version |
+| 2-语气词检测.md | Preference | um/uh/ah + deletion boundary |
+| 3-静音段处理.md | Threshold | ≤0.5s ignore, 0.5-1s optional, >1s suggest delete |
+| 4-重复句检测.md | Preference | Adjacent sentences with ≥5 matching words at start → delete shorter |
+| 5-卡顿词.md | Preference | "and and", "like like", repeated fillers |
+| 6-句内重复检测.md | Preference | A + middle + A pattern |
+| 7-连续语气词.md | Preference | Consecutive fillers (um ah, uh er) |
+| 8-重说纠正.md | Preference | Partial repeat, negation correction, interrupted word |
+| 9-残句检测.md | Preference | Sentence started but abandoned |
 
-## AI 审核顺序（按优先级）
+## AI review order (by priority)
 
-1. **静音 >1s** → 建议删（按1秒格子拆分）
-2. **残句** → 删（话说一半 + 静音）
-3. **重复句** → 删短的（开头≥5字相同）
-4. **句内重复** → 删 A+中间（A+中间+A 模式）
-5. **卡顿词** → 删前面（那个那个、就是就是）
-6. **重说纠正** → 删前面（部分重复、否定纠正、词被打断）
-7. **语气词** → 标记待人工确认（嗯啊呃）
+1. **Silence >1s** → suggest delete (split into 1s chunks)
+2. **Fragments** → delete (sentence abandoned + silence)
+3. **Repeated sentences** → delete the shorter one (≥5 word overlap at start)
+4. **Intra-sentence repeat** → delete front part (A + middle + A pattern)
+5. **Stutter words** → delete front repetitions ("and and" → keep last "and")
+6. **Self-corrections** → delete front (partial repeat, negation, interrupted word)
+7. **Filler words** → flag for human review (um, uh — don't auto-delete all)
 
-## 核心原则
+## Core principle
 
-**删前保后**：后说的通常更完整，删除前面保留后面。
+**Keep the later version**: the second attempt is usually more complete — delete the earlier, keep the later.
