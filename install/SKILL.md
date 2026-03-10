@@ -1,6 +1,6 @@
 ---
 name: install
-description: Environment setup. Install dependencies, configure API keys, verify environment. Trigger words: install, setup, initialize, installation
+description: "Environment setup. Install dependencies, configure API keys, verify environment. Trigger words: install, setup, initialize, installation"
 ---
 
 <!--
