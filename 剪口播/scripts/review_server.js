@@ -251,37 +251,24 @@ function executeFFmpegCut(input, deleteList, output) {
 
   console.log(`保留 ${keepSegments.length} 个片段，删除 ${mergedDelete.length} 个片段`);
 
-  // 生成 filter_complex（视频 xfade + 音频 acrossfade，时长一致保持音画同步）
+  // 生成 filter_complex：视频和音频均用 concat，音频每段单独加淡入/淡出（无链式滤镜，快速且音画同步）
   let filters = [];
+  let vconcat = '';
+  let aconcat = '';
 
   for (let i = 0; i < keepSegments.length; i++) {
     const seg = keepSegments[i];
+    const dur = seg.end - seg.start;
+    const fade = Math.min(crossfadeSec / 2, dur / 4);
+
     filters.push(`[0:v]trim=start=${seg.start.toFixed(3)}:end=${seg.end.toFixed(3)},setpts=PTS-STARTPTS[v${i}]`);
-    filters.push(`[0:a]atrim=start=${seg.start.toFixed(3)}:end=${seg.end.toFixed(3)},asetpts=PTS-STARTPTS[a${i}]`);
+    filters.push(`[0:a]atrim=start=${seg.start.toFixed(3)}:end=${seg.end.toFixed(3)},asetpts=PTS-STARTPTS,afade=t=in:st=0:d=${fade.toFixed(3)},afade=t=out:st=${(dur - fade).toFixed(3)}:d=${fade.toFixed(3)}[a${i}]`);
+    vconcat += `[v${i}]`;
+    aconcat += `[a${i}]`;
   }
 
-  if (keepSegments.length === 1) {
-    filters.push('[v0]null[outv]');
-    filters.push('[a0]anull[outa]');
-  } else {
-    // 视频：xfade（与 acrossfade 时长一致，两者每个接缝均减少相同时间，保持同步）
-    let currentVLabel = 'v0';
-    let vOffset = 0;
-    for (let i = 1; i < keepSegments.length; i++) {
-      vOffset += (keepSegments[i-1].end - keepSegments[i-1].start) - crossfadeSec;
-      const outLabel = (i === keepSegments.length - 1) ? 'outv' : `vx${i}`;
-      filters.push(`[${currentVLabel}][v${i}]xfade=transition=fade:duration=${crossfadeSec.toFixed(3)}:offset=${vOffset.toFixed(3)}[${outLabel}]`);
-      currentVLabel = outLabel;
-    }
-
-    // 音频：acrossfade
-    let currentALabel = 'a0';
-    for (let i = 1; i < keepSegments.length; i++) {
-      const outLabel = (i === keepSegments.length - 1) ? 'outa' : `amid${i}`;
-      filters.push(`[${currentALabel}][a${i}]acrossfade=d=${crossfadeSec.toFixed(3)}:c1=tri:c2=tri[${outLabel}]`);
-      currentALabel = outLabel;
-    }
-  }
+  filters.push(`${vconcat}concat=n=${keepSegments.length}:v=1:a=0[outv]`);
+  filters.push(`${aconcat}concat=n=${keepSegments.length}:v=0:a=1[outa]`);
 
   const filterComplex = filters.join(';');
 
