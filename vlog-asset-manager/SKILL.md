@@ -1,119 +1,125 @@
 ---
 name: vlog-asset-manager
-description: reads through all video files in vlog folder and runs renaming based on timestamp and sorts into folders
+description: "Scans video project folders, renames clips by creation timestamp and sorts them into day folders. Reversible via reset script. Trigger words: organize clips, sort videos, rename clips"
 ---
 
 <!--
-input: 无
-output: 环境就绪
-pos: 前置 skill，首次使用前运行
+input: a folder path containing video files
+output: renamed and sorted video files + day folders
 
-架构守护者：一旦我被修改，请同步更新：
-1. ../README.md 的 Skill 清单
-2. /CLAUDE.md 路由表
+To Claude Agents: If this file gets updated, please update:
+1. The Skills list in ../README.md
+2. /CLAUDE.md list
 -->
 
-# 安装
+# Vlog Asset Manager
 
-> 首次使用前的环境准备
+Renames video clips by creation timestamp and sorts them into day-based folders. All operations are reversible.
 
-## 快速使用
-
-```
-用户: 安装环境
-用户: 初始化
-```
-
-## 依赖清单
-
-| 依赖 | 用途 | 安装命令 |
-|------|------|----------|
-| Node.js | 运行脚本 | `brew install node` |
-| FFmpeg | 视频剪辑 | `brew install ffmpeg` |
-| Python 3.8+ | 运行 WhisperX | 系统自带或 `brew install python` |
-| WhisperX | 本地语音转录 | `pip install whisperx` |
-
-## 安装流程
+## Expected Project Structure
 
 ```
-1. 安装 Node.js + FFmpeg
+0xx <videoTopic>/
+├── Exports/          # Finished videos & thumbnails
+├── Media/
+│   ├── Assets/
+│   │   ├── Music/
+│   │   └── Photos/
+│   ├── Videos/
+│   │   ├── A Rolls/
+│   │   └── B Rolls/
+│   ├── Vlogs/        # Raw clips from DJI & phone go here
+│   └── Thumbnails/   # Temporary thumbnail assets
+```
+
+## Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/rename-video-assets.py` | Renames clips to `D{day}-{seq}` format based on creation time |
+| `scripts/sort-video-into-folders.py` | Moves renamed clips into `D1/`, `D2/`, etc. folders |
+| `scripts/reset.py` | Randomizes filenames to undo renaming (reversibility) |
+
+Supported extensions: `.mp4`, `.mov`, `.avi`, `.mkv`, `.m4v`, `.mts`
+
+## Flow
+
+```
+1. User provides folder path (typically the Vlogs/ folder)
        ↓
-2. 安装 WhisperX
+2. rename-video-assets.py
+   - Reads creation timestamp from each video file
+   - Sorts all files chronologically
+   - Two-pass rename (temp names first, then final D1-01 names)
+   - Avoids collisions by clearing the namespace first
        ↓
-3. 验证环境
+3. sort-video-into-folders.py
+   - Moves D1-* files into D1/ folder, D2-* into D2/, etc.
+       ↓
+4. (If needed) reset.py
+   - Renames all files to random 4-digit numbers
+   - Use this to undo and start over
 ```
 
-## 执行步骤
+## Usage
 
-### 1. 安装系统依赖
+### Step 1: Rename by timestamp
 
 ```bash
-# macOS
-brew install node ffmpeg
-
-# 验证
-node -v
-ffmpeg -version
+SKILL_DIR="path/to/vlog-asset-manager"
+python "$SKILL_DIR/scripts/rename-video-assets.py"
+# Enter folder path when prompted
 ```
 
-### 2. 安装 WhisperX
+Output: `D1-01.mp4`, `D1-02.mov`, `D2-01.mp4`, etc.
+
+### Step 2: Sort into day folders
 
 ```bash
-pip install whisperx
-
-# 验证
-python -c "import whisperx; print('WhisperX OK')"
+python "$SKILL_DIR/scripts/sort-video-into-folders.py"
+# Enter the same folder path when prompted
 ```
 
-首次转录时会自动下载模型：
-- `large-v2` 约 3GB（转录用，自动缓存到 ~/.cache/whisper）
-- 对齐模型按语言单独下载（英语约 400MB）
+Output: files moved into `D1/`, `D2/`, etc. subfolders.
 
-**GPU 加速（可选）**：安装 CUDA 版 PyTorch 后 WhisperX 会自动使用 GPU，速度提升 5-10x。
-
-### 3. 验证环境
+### Step 3: Undo (if needed)
 
 ```bash
-# 检查 Node.js
-node -v
-
-# 检查 FFmpeg
-ffmpeg -version
-
-# 检查 WhisperX
-python -c "import whisperx; print('WhisperX OK')"
+python "$SKILL_DIR/scripts/reset.py"
+# Enter folder path when prompted
 ```
 
-## 常见问题
+This randomizes all filenames, clearing the D-naming so you can re-run step 1 cleanly.
 
-### Q1: WhisperX 安装失败
+## Safety Rules
 
-```bash
-# 如果 pip install whisperx 报错，尝试：
-pip install whisperx --no-deps
-pip install torch torchaudio  # 单独安装 PyTorch
-```
+- NEVER delete any files. These scripts only rename and move.
+- The rename script uses a two-pass approach (temp names → final names) to prevent collisions when re-running.
+- `reset.py` is the undo mechanism — it randomizes names so you can start fresh.
+- If a file already exists at the destination during sort, `Path.rename()` will overwrite on some systems. Always reset before re-running if you've added new files.
 
-### Q2: ffmpeg 命令找不到
+## Collision Prevention
 
-```bash
-which ffmpeg  # 应该输出路径
-# 如果没有，重新安装：brew install ffmpeg
-```
+A past bug caused data loss when new files were added and the rename was re-run — a new file got the same `D1-01` name as an existing file.
 
-### Q3: 文件名含冒号报错
+The current `rename-video-assets.py` fixes this with a two-pass strategy:
+1. First pass: rename ALL files to temporary names (`temp_0`, `temp_1`, ...)
+2. Second pass: assign final `D{day}-{seq}` names from the cleared namespace
 
-FFmpeg 命令需加 `file:` 前缀：
+If you need to add files and re-run, either:
+- Reset first (`reset.py`), then re-run rename on the full set
+- Or manually verify no collisions exist before running
 
-```bash
-ffmpeg -i "file:2026:01:26 task.mp4" ...
-```
+## FAQ
 
-### Q4: 转录速度慢
+### Q: I added new clips and want to re-sort. What do I do?
 
-无 GPU 时 CPU 转录约 5-8 分钟（19 分钟视频）。可降低模型规格：
+Run `reset.py` first to clear all D-names, then re-run `rename-video-assets.py` on the full folder. This ensures the new files get properly sequenced.
 
-```bash
-# 在 whisperx_transcribe.py 中将 "large-v2" 改为 "medium" 或 "small"
-# 速度提升 2-4x，精度略降
-```
+### Q: Can I rename only new files without touching existing ones?
+
+Not with the current scripts — they operate on the entire folder. Reset + re-run is the safe approach.
+
+### Q: The creation time is wrong on some files.
+
+The script uses `st_birthtime` on macOS (true creation time). If files were copied in a way that reset the timestamp, the modification time (`st_mtime`) is used as fallback. Check with `stat` or `mdls` on macOS.
