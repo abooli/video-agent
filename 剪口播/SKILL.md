@@ -1,5 +1,5 @@
 ---
-name: video-rough-cut-deepgram
+name: rough-cut
 description: A rough cut Agent that uses Deepgram as a transcription service to identify pauses, blanks, and wrong takes in a raw video file. Trigger words: rough cut.
 ---
 

@@ -15,7 +15,8 @@ As part of the migration plan, we have a couple milestones. In the end product, 
 |---|------|--------|
 | 1 | Translate the skill 安装 to "Installation", no need to edit the scripts. (Delete WhisperX section — migrated to Deepgram) | ✅ Done |
 | 2 | Fill out SKILL.md in vlog-asset-manager, make it safe so it doesn't accidentally delete files | ✅ Done |
-| 3 | Create a new skill that allows for batch editing | 🔲 Todo |
-| 4 | Clean up output path for batch editing | 🔲 Todo |
-| 5 | Paste over brand visualization and vlog checklist | 🔲 Todo |
+| 3 | Clean up 剪口播 and refactor into "Rough Cut" skill | 🔲 Todo |
+| 4 | Create a new skill that allows for batch editing | 🔲 Todo |
+| 5 | Clean up output path for batch editing | 🔲 Todo |
+| 6 | Paste over brand visualization and vlog checklist | 🔲 Todo |
 
