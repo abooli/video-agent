@@ -1,119 +1,108 @@
 ---
-name: 安装
-description: 环境准备。安装依赖、配置 API Key、验证环境。触发词：安装、环境准备、初始化
+name: install
+description: Environment setup. Install dependencies, configure API keys, verify environment. Trigger words: install, setup, initialize, installation
 ---
 
 <!--
-input: 无
-output: 环境就绪
-pos: 前置 skill，首次使用前运行
+input: none
+output: environment ready
+pos: prerequisite skill, run before first use
 
-架构守护者：一旦我被修改，请同步更新：
-1. ../README.md 的 Skill 清单
-2. /CLAUDE.md 路由表
+To Claude Agents: If this file gets updated, please update:
+1. The Skills list in ../READ.md
+2. /CLAUDE.md list
 -->
 
-# 安装
+# Installation
 
-> 首次使用前的环境准备
+> First-time environment setup
 
-## 快速使用
-
-```
-用户: 安装环境
-用户: 初始化
-```
-
-## 依赖清单
-
-| 依赖 | 用途 | 安装命令 |
-|------|------|----------|
-| Node.js | 运行脚本 | `brew install node` |
-| FFmpeg | 视频剪辑 | `brew install ffmpeg` |
-| Python 3.8+ | 运行 WhisperX | 系统自带或 `brew install python` |
-| WhisperX | 本地语音转录 | `pip install whisperx` |
-
-## 安装流程
+## Quick Start
 
 ```
-1. 安装 Node.js + FFmpeg
+User: install environment
+User: setup
+User: initialize
+```
+
+## Dependencies
+
+| Dependency | Purpose | Install Command |
+|------------|---------|-----------------|
+| Node.js | Run scripts | `brew install node` |
+| FFmpeg | Video processing | `brew install ffmpeg` |
+| Python 3.8+ | Run transcription scripts | System default or `brew install python` |
+| Deepgram SDK | Cloud transcription | `pip install deepgram-sdk` |
+
+## Setup Flow
+
+```
+1. Install Node.js + FFmpeg
        ↓
-2. 安装 WhisperX
+2. Install Deepgram SDK + configure API key
        ↓
-3. 验证环境
+3. Verify environment
 ```
 
-## 执行步骤
+## Steps
 
-### 1. 安装系统依赖
+### 1. Install System Dependencies
 
 ```bash
 # macOS
 brew install node ffmpeg
 
-# 验证
+# Verify
 node -v
 ffmpeg -version
 ```
 
-### 2. 安装 WhisperX
+### 2. Install Deepgram SDK
 
 ```bash
-pip install whisperx
+pip install deepgram-sdk
 
-# 验证
-python -c "import whisperx; print('WhisperX OK')"
+# Verify
+python -c "from deepgram import DeepgramClient; print('Deepgram SDK OK')"
 ```
 
-首次转录时会自动下载模型：
-- `large-v2` 约 3GB（转录用，自动缓存到 ~/.cache/whisper）
-- 对齐模型按语言单独下载（英语约 400MB）
-
-**GPU 加速（可选）**：安装 CUDA 版 PyTorch 后 WhisperX 会自动使用 GPU，速度提升 5-10x。
-
-### 3. 验证环境
+### 3. Configure API Key
 
 ```bash
-# 检查 Node.js
+# Copy the example env file and fill in your Deepgram API key
+cp .env.example .env
+# Edit .env and set DEEPGRAM_API_KEY=your_key_here
+```
+
+### 4. Verify Environment
+
+```bash
 node -v
-
-# 检查 FFmpeg
 ffmpeg -version
-
-# 检查 WhisperX
-python -c "import whisperx; print('WhisperX OK')"
+python -c "from deepgram import DeepgramClient; print('Deepgram SDK OK')"
 ```
 
-## 常见问题
+## FAQ
 
-### Q1: WhisperX 安装失败
+### Q1: Deepgram SDK install fails
 
 ```bash
-# 如果 pip install whisperx 报错，尝试：
-pip install whisperx --no-deps
-pip install torch torchaudio  # 单独安装 PyTorch
+# Try upgrading pip first
+pip install --upgrade pip
+pip install deepgram-sdk
 ```
 
-### Q2: ffmpeg 命令找不到
+### Q2: ffmpeg command not found
 
 ```bash
-which ffmpeg  # 应该输出路径
-# 如果没有，重新安装：brew install ffmpeg
+which ffmpeg  # Should output a path
+# If not, reinstall: brew install ffmpeg
 ```
 
-### Q3: 文件名含冒号报错
+### Q3: Filenames with colons cause errors
 
-FFmpeg 命令需加 `file:` 前缀：
+FFmpeg requires the `file:` prefix for paths with colons:
 
 ```bash
 ffmpeg -i "file:2026:01:26 task.mp4" ...
-```
-
-### Q4: 转录速度慢
-
-无 GPU 时 CPU 转录约 5-8 分钟（19 分钟视频）。可降低模型规格：
-
-```bash
-# 在 whisperx_transcribe.py 中将 "large-v2" 改为 "medium" 或 "small"
-# 速度提升 2-4x，精度略降
 ```
