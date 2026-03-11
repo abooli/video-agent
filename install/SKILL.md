@@ -33,15 +33,18 @@ User: initialize
 | FFmpeg | Video processing | `brew install ffmpeg` |
 | Python 3.8+ | Run transcription scripts | System default or `brew install python` |
 | Deepgram SDK | Cloud transcription | `pip install deepgram-sdk` |
+| Notion Client | Upload storyboard to Notion | `pip install notion-client` |
 
 ## Setup Flow
 
 ```
 1. Install Node.js + FFmpeg
        ↓
-2. Install Deepgram SDK + configure API key
+2. Install Python SDKs (Deepgram + Notion)
        ↓
-3. Verify environment
+3. Configure API keys (Deepgram + Notion)
+       ↓
+4. Verify environment
 ```
 
 ## Steps
@@ -57,22 +60,32 @@ node -v
 ffmpeg -version
 ```
 
-### 2. Install Deepgram SDK
+### 2. Install Python SDKs
 
 ```bash
-pip install deepgram-sdk
+pip install deepgram-sdk notion-client
 
 # Verify
 python -c "from deepgram import DeepgramClient; print('Deepgram SDK OK')"
+python -c "from notion_client import Client; print('Notion SDK OK')"
 ```
 
-### 3. Configure API Key
+### 3. Configure API Keys
 
 ```bash
-# Copy the example env file and fill in your Deepgram API key
+# Copy the example env file
 cp .env.example .env
-# Edit .env and set DEEPGRAM_API_KEY=your_key_here
+# Edit .env and set:
+#   DEEPGRAM_API_KEY=your_key_here
+#   NOTION_API_KEY=your_notion_secret_here
 ```
+
+**Getting your Notion API key:**
+1. Go to https://www.notion.so/profile/integrations
+2. Click **"New integration"** (the simple internal one — no website/tagline needed)
+3. Name it (e.g. "Video Skills"), pick your workspace, submit
+4. Copy the **Internal Integration Secret** → paste into `.env`
+5. For each Notion video page: open it → `...` menu → **Connect to** → select your integration
 
 ### 4. Verify Environment
 
@@ -80,6 +93,7 @@ cp .env.example .env
 node -v
 ffmpeg -version
 python -c "from deepgram import DeepgramClient; print('Deepgram SDK OK')"
+python -c "from notion_client import Client; print('Notion SDK OK')"
 ```
 
 ## FAQ

@@ -25,6 +25,7 @@ Batch transcribes user-specified A-roll clips, then runs storyboard analysis to 
    - Emotional goals
    - List of A-roll clips (e.g. D1-08, D3-03, D2-01)
    - Path to the Vlogs/ sorted folder
+   - Notion page URL for this video (e.g. https://notion.so/...)
        ↓
 2. Save answers into per-video context file
        ↓
@@ -36,7 +37,11 @@ Batch transcribes user-specified A-roll clips, then runs storyboard analysis to 
    - Uses prompt-template.md structure
    - Outputs: storyboard_analysis.md
        ↓
-5. User uses analysis to plan edit in NLE
+5. Upload to Notion (populates STEP 4: Paper Cut of their video page)
+   - Parses storyboard_analysis.md
+   - Appends Story toggles + hot takes + identities into STEP 4
+       ↓
+6. User reviews + refines storyboard in Notion, then runs rough-cut agent per chapter
 ```
 
 ## Step 1: Gather Context (BEFORE transcription)
@@ -50,6 +55,7 @@ Ask the user these questions interactively and save the answers. Do NOT start tr
 4. Emotional goals? (e.g. relate, be inspired, laugh)
 5. List your A-roll clips (e.g. D1-08, D3-03, D2-01)
 6. Path to the Vlogs/ sorted folder (e.g. ~/Videos/012 CookingVlog/Media/Vlogs)
+7. Notion page URL for this video (e.g. https://notion.so/Your-Title-2aafac24...)
 ```
 
 Save to `per_video_context.md`:
@@ -63,6 +69,7 @@ Save to `per_video_context.md`:
 - Emotional goals: <user answer>
 - A-roll clips: D1-08, D3-03, D2-01
 - Source folder: ~/Videos/012 CookingVlog/Media/Vlogs
+- Notion page URL: https://notion.so/...
 ```
 
 ## Step 2: Batch Transcribe
@@ -113,6 +120,34 @@ The AI should produce:
 4. Top 5 hot takes relevant to this vlog
 5. Top 5 identities/personality traits with room for development
 
+## Step 4: Upload to Notion
+
+After storyboard analysis is complete, upload to the user's Notion video page:
+
+```bash
+# Extract page ID from the Notion URL (the UUID at the end)
+# e.g. https://notion.so/Your-Title-2aafac24288780d3b101d2722375e0df
+#                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this part
+
+NOTION_PAGE_ID="<extracted UUID>"
+STORYBOARD_FILE="output/YYYY-MM-DD_<vlog-name>/storyboard/storyboard_analysis.md"
+
+python vlog-storyboard/scripts/notion_upload.py "$NOTION_PAGE_ID" "$STORYBOARD_FILE"
+```
+
+The script will:
+1. Find the **STEP 4: Paper Cut** toggle block in the Notion page
+2. Append inside it:
+   - 📝 Overall summary callout (blue)
+   - Story toggles (one per chapter) — each with ⭐ callout + A Roll transcript + to-do focus items
+   - 🔥 Relevant Hot Takes toggle
+   - 🎭 Relevant Identities toggle
+
+**Prerequisites:**
+- `NOTION_API_KEY` set in `.env`
+- The Notion integration must be connected to the page:
+  Open the page in Notion → `...` menu → **Connect to** → select your integration
+
 ## Output Structure
 
 ```
@@ -123,9 +158,11 @@ output/YYYY-MM-DD_<vlog-name>/storyboard/
 │   ├── D3-03_transcript.json
 │   └── ...
 ├── combined_transcript.txt
-└── storyboard_analysis.md
+└── storyboard_analysis.md   ← also uploaded to Notion STEP 4
 ```
 
 ## After Storyboarding
 
-Once chapters are defined, the user can run the existing rough-cut skill per chapter. Each chapter typically spans 1-2 A-roll clips.
+1. User reviews the storyboard in Notion — refine chapters, conflict/resolution, focus notes
+2. Once happy with the structure, run the rough-cut agent per chapter
+3. Each chapter typically spans 1-2 A-roll clips
