@@ -30,13 +30,6 @@ def load_env():
                     os.environ.setdefault(key.strip(), val.strip())
 
 
-def extract_section(text, header):
-    """Extract content between a ## header and the next ## header."""
-    pattern = rf"##\s+{re.escape(header)}.*?\n(.*?)(?=\n##\s|\Z)"
-    match = re.search(pattern, text, re.DOTALL)
-    return match.group(1).strip() if match else ""
-
-
 def extract_bullet_list(text):
     """Extract bullet points from a block of text."""
     return [
@@ -53,14 +46,12 @@ def parse_storyboard(filepath):
 
     result = {
         "summary": "",
-        "character_analysis": "",
         "hot_takes": [],
         "identities": [],
         "chapters": [],
     }
 
     # --- Part 1: Overall Analysis ---
-    # Find text between Part 1 and Part 2 headers
     part1_match = re.search(
         r"(?:Part 1|Overall Analysis).*?\n(.*?)(?=(?:Part 2|Chapter Breakdown)|\Z)",
         content,
@@ -69,11 +60,10 @@ def parse_storyboard(filepath):
     if part1_match:
         part1 = part1_match.group(1)
     else:
-        # Fallback: content before the first ### Chapter
         part1_match2 = re.search(r"^(.*?)(?=###\s+Chapter\s+\d+)", content, re.DOTALL)
         part1 = part1_match2.group(1) if part1_match2 else ""
 
-    # Extract summary (first substantial paragraph ~100-200 words)
+    # Extract summary
     summary_match = re.search(
         r"(?:summary|1\.\s*Based on|overall)[:\s]*\n*((?:.+\n?){2,})",
         part1,
@@ -82,7 +72,6 @@ def parse_storyboard(filepath):
     if summary_match:
         result["summary"] = summary_match.group(1).strip()
     else:
-        # Grab first large paragraph as summary
         paragraphs = [p.strip() for p in part1.split("\n\n") if len(p.strip()) > 100]
         if paragraphs:
             result["summary"] = paragraphs[0]
@@ -117,38 +106,40 @@ def parse_storyboard(filepath):
             "title": match.group(2).strip(),
             "summary": "",
             "character_moment": "",
+            "hot_take": "",
+            "personality": "",
             "add_focus": [],
             "clips": "",
             "transcript": "",
         }
 
-        # Summary
-        s = re.search(r"\*\*Summary:\*\*\s*(.+?)(?=\*\*|$)", body, re.DOTALL)
+        s = re.search(r"\*\*Summary:\*\*\s*(.+?)(?=\*\*[A-Z]|\Z)", body, re.DOTALL)
         if s:
             chapter["summary"] = s.group(1).strip()
 
-        # Character Moment
-        m = re.search(r"\*\*Character Moment:\*\*\s*(.+?)(?=\*\*|$)", body, re.DOTALL)
+        m = re.search(r"\*\*Character Moment:\*\*\s*(.+?)(?=\*\*[A-Z]|\Z)", body, re.DOTALL)
         if m:
             chapter["character_moment"] = m.group(1).strip()
 
-        # Add Focus checkboxes
+        ht = re.search(r"\*\*Hot Take:\*\*\s*(.+?)(?=\*\*[A-Z]|\Z)", body, re.DOTALL)
+        if ht:
+            chapter["hot_take"] = ht.group(1).strip()
+
+        p = re.search(r"\*\*Personality:\*\*\s*(.+?)(?=\*\*[A-Z]|\Z)", body, re.DOTALL)
+        if p:
+            chapter["personality"] = p.group(1).strip()
+
         chapter["add_focus"] = re.findall(r"- \[ \]\s*(.+)", body)
 
-        # Clips
         c = re.search(r"\*\*Clips?:\*\*\s*(.+?)(?=\n|$)", body)
         if c:
             chapter["clips"] = c.group(1).strip()
 
-        # Transcript excerpt (strip > quote markers)
-        t = re.search(
-            r"\*\*Transcript excerpt:\*\*\s*\n((?:>.*\n?)+)", body
-        )
+        t = re.search(r"\*\*Transcript excerpt:\*\*\s*\n((?:>.*\n?)+)", body)
         if t:
             raw = t.group(1)
             chapter["transcript"] = re.sub(r"^>\s?", "", raw, flags=re.MULTILINE).strip()
         else:
-            # Try without >
             t2 = re.search(
                 r"\*\*Transcript excerpt:\*\*\s*\n(.+?)(?=---|###|\Z)", body, re.DOTALL
             )
@@ -161,7 +152,7 @@ def parse_storyboard(filepath):
 
 
 def truncate_text(text, limit=1900):
-    """Truncate text to Notion's rich_text limit (2000 chars), with a buffer."""
+    """Truncate text to Notion's rich_text limit (2000 chars), with buffer."""
     if len(text) <= limit:
         return text
     return text[:limit] + "…"
@@ -182,11 +173,39 @@ def rich_text(content, bold=False, italic=False, color=None):
     return obj
 
 
+def parse_transcript_with_clips(text):
+    """Parse transcript text, bolding [Dx-xx] clip references.
+    
+    Returns a list of rich_text objects with clip refs bolded.
+    """
+    if not text:
+        return [rich_text("(no transcript)")]
+    
+    parts = re.split(r"(\[D\d+-\d+\]|\*\*\[D\d+-\d+\]\*\*)", text)
+    result = []
+    for part in parts:
+        if not part:
+            continue
+        # Strip markdown bold markers if present
+        clean = re.sub(r"\*\*", "", part)
+        if re.match(r"\[D\d+-\d+\]", clean):
+            result.append(rich_text(clean, bold=True))
+        else:
+            result.append(rich_text(part))
+    return result if result else [rich_text("(no transcript)")]
+
+
 def build_chapter_toggle(chapter):
-    """Build a Notion toggle block representing one story/chapter."""
+    """Build a Notion toggle block for one chapter.
+    
+    Structure inside toggle:
+    - Callout (star): summary, character moment, hot take, personality, clips
+    - Paragraph: transcript with bolded clip refs
+    - To-do items: add focus suggestions
+    """
     children = []
 
-    # --- Callout: summary + conflict info (yellow star, like template) ---
+    # --- Callout: summary + character info ---
     callout_parts = []
     if chapter["summary"]:
         callout_parts.append(rich_text("Summary: ", bold=True))
@@ -194,6 +213,12 @@ def build_chapter_toggle(chapter):
     if chapter["character_moment"]:
         callout_parts.append(rich_text("Character Moment: ", bold=True))
         callout_parts.append(rich_text(chapter["character_moment"] + "\n\n"))
+    if chapter["hot_take"]:
+        callout_parts.append(rich_text("Hot Take: ", bold=True))
+        callout_parts.append(rich_text(chapter["hot_take"] + "\n\n"))
+    if chapter["personality"]:
+        callout_parts.append(rich_text("Personality: ", bold=True))
+        callout_parts.append(rich_text(chapter["personality"] + "\n\n"))
     if chapter["clips"]:
         callout_parts.append(rich_text("Clips: ", bold=True))
         callout_parts.append(rich_text(chapter["clips"]))
@@ -210,17 +235,14 @@ def build_chapter_toggle(chapter):
             }
         )
 
-    # --- A Roll transcript paragraph ---
+    # --- Transcript paragraph with bolded clip refs ---
     if chapter["transcript"]:
+        transcript_parts = [rich_text("[A Roll] ", bold=True)]
+        transcript_parts.extend(parse_transcript_with_clips(chapter["transcript"]))
         children.append(
             {
                 "type": "paragraph",
-                "paragraph": {
-                    "rich_text": [
-                        rich_text("[A Roll] ", bold=True),
-                        rich_text(chapter["transcript"]),
-                    ]
-                },
+                "paragraph": {"rich_text": transcript_parts},
             }
         )
 
@@ -248,9 +270,16 @@ def build_chapter_toggle(chapter):
 
 
 def find_step4_block_id(client, page_id):
-    """Find the STEP 4 toggle block in the Notion page."""
+    """Find the STEP 4 toggle heading block in the Notion page."""
     response = client.blocks.children.list(block_id=page_id)
     for block in response["results"]:
+        # Check toggle headings (heading_2 with is_toggleable)
+        if block["type"] == "heading_2":
+            texts = block["heading_2"].get("rich_text", [])
+            text = "".join(t.get("plain_text", "") for t in texts)
+            if "STEP 4" in text or "Paper Cut" in text:
+                return block["id"]
+        # Also check plain toggles as fallback
         if block["type"] == "toggle":
             texts = block["toggle"].get("rich_text", [])
             text = "".join(t.get("plain_text", "") for t in texts)
@@ -285,7 +314,7 @@ def upload_to_notion(page_id, storyboard_file):
 
     print(f"✅ Found {len(data['chapters'])} chapters")
 
-    # Find STEP 4 block
+    # Find STEP 4 block — append inside it as children (preserving existing children)
     step4_id = find_step4_block_id(client, page_id)
 
     # Build blocks to append
@@ -321,40 +350,40 @@ def upload_to_notion(page_id, storyboard_file):
 
     # Hot takes toggle
     if data["hot_takes"]:
-        ht_text = "\n".join(f"• {ht}" for ht in data["hot_takes"])
+        ht_children = []
+        for ht in data["hot_takes"]:
+            ht_children.append(
+                {
+                    "type": "paragraph",
+                    "paragraph": {"rich_text": [rich_text(f"• {ht}")]},
+                }
+            )
         blocks.append(
             {
                 "type": "toggle",
                 "toggle": {
                     "rich_text": [rich_text("🔥 Relevant Hot Takes")],
-                    "children": [
-                        {
-                            "type": "paragraph",
-                            "paragraph": {
-                                "rich_text": [rich_text(ht_text)]
-                            },
-                        }
-                    ],
+                    "children": ht_children,
                 },
             }
         )
 
     # Identities toggle
     if data["identities"]:
-        id_text = "\n".join(f"• {i}" for i in data["identities"])
+        id_children = []
+        for identity in data["identities"]:
+            id_children.append(
+                {
+                    "type": "paragraph",
+                    "paragraph": {"rich_text": [rich_text(f"• {identity}")]},
+                }
+            )
         blocks.append(
             {
                 "type": "toggle",
                 "toggle": {
                     "rich_text": [rich_text("🎭 Relevant Identities")],
-                    "children": [
-                        {
-                            "type": "paragraph",
-                            "paragraph": {
-                                "rich_text": [rich_text(id_text)]
-                            },
-                        }
-                    ],
+                    "children": id_children,
                 },
             }
         )
