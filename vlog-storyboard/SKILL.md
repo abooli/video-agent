@@ -130,7 +130,7 @@ After storyboard analysis is complete, upload to the user's Notion video page:
 #                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this part
 
 NOTION_PAGE_ID="<extracted UUID>"
-STORYBOARD_FILE="output/YYYY-MM-DD_<vlog-name>/storyboard/storyboard_analysis.md"
+STORYBOARD_FILE="Claude output/storyboard/storyboard_analysis.md"
 
 python vlog-storyboard/scripts/notion_upload.py "$NOTION_PAGE_ID" "$STORYBOARD_FILE"
 ```
@@ -151,7 +151,7 @@ The script will:
 ## Output Structure
 
 ```
-output/YYYY-MM-DD_<vlog-name>/storyboard/
+Claude output/storyboard/
 ├── per_video_context.md
 ├── transcripts/
 │   ├── D1-08_transcript.json

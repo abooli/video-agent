@@ -15,8 +15,11 @@ As part of the migration plan, we have a couple milestones. In the end product, 
 |---|------|--------|
 | 1 | Translate the skill 安装 to "Installation", no need to edit the scripts. (Delete WhisperX section — migrated to Deepgram) | ✅ Done |
 | 2 | Fill out SKILL.md in vlog-asset-manager, make it safe so it doesn't accidentally delete files | ✅ Done |
-| 3 | Clean up 剪口播 and refactor into "Rough Cut" skill | 🔲 Todo |
-| 4 | Create a new skill that allows for batch editing | 🔲 Todo |
-| 5 | Clean up output path for batch editing | 🔲 Todo |
-| 6 | Paste over brand visualization and vlog checklist | 🔲 Todo |
+| 3 | Create vlog-storyboard skill (batch transcribe + story beats + Notion upload) | ✅ Done |
+| 4 | Refactor 剪口播 → `rough-cut/` (translate to English, swap WhisperX → Deepgram, clean up scripts) | � In Progress |
+| 5 | Build `batch-rough-cut/` — orchestration layer with web dashboard for processing multiple chapters at once | 🔲 Todo |
+| 6 | Clean up output path for batch editing | 🔲 Todo |
+| 7 | Paste over brand visualization and vlog checklist | 🔲 Todo |
+| 8 | Translate 字幕 → `subtitles/` (translate SKILL.md + README, swap WhisperX → Deepgram, keep Chinese correction table) | 🔲 Todo |
+| 9 | Translate 自进化 → `self-evolution/` (translate to English, adapt CLAUDE.md refs → Kiro steering files) | 🔲 Todo |
 
