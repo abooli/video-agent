@@ -154,7 +154,9 @@ The script will:
 Claude output/storyboard/
 ├── per_video_context.md
 ├── transcripts/
+│   ├── D1-08_audio.mp3           ← extracted audio (reused by rough-cut)
 │   ├── D1-08_transcript.json
+│   ├── D3-03_audio.mp3
 │   ├── D3-03_transcript.json
 │   └── ...
 ├── combined_transcript.txt

@@ -17,7 +17,9 @@ Originally built for Chinese talking-head videos, now being migrated to English 
 |-------|-------------|-------|--------|
 | `install` | Environment setup (Node.js, FFmpeg, Deepgram) | None | Ready environment |
 | `vlog-asset-manager` | Rename clips by timestamp, sort into day folders | Folder path | Organized clips |
-| `剪口播` | Transcription + AI stumble detection + rough cut | Video file | Cut video |
+| `podcast-rough-cut` | Transcription + AI stumble detection + rough cut | Video file | Cut video |
+| `vlog-rough-cut` | Batch rough-cut per chapter, tabbed review dashboard | Storyboard transcripts | Cut videos per chapter |
+| `vlog-storyboard` | Batch transcribe A-rolls, story beats + Notion upload | Clip list | Storyboard analysis |
 | `字幕` | Subtitle generation + dictionary correction + burn-in | Video file | Subtitled video |
 | `自进化` | Records user feedback, updates rules over time | User feedback | Updated rule files |
 
@@ -56,8 +58,18 @@ video-agent/
 │       ├── rename-video-assets.py
 │       ├── sort-video-into-folders.py
 │       └── reset.py
-├── 剪口播/              # Rough cut (transcription + AI analysis)
+├── podcast-rough-cut/   # Rough cut (transcription + AI analysis)
 │   ├── SKILL.md
+│   ├── detection-rules/ # Stumble detection rules (10 files)
+│   └── scripts/
+├── vlog-rough-cut/      # Batch rough-cut per chapter
+│   ├── SKILL.md
+│   └── scripts/
+├── vlog-storyboard/     # Story beats + chapter analysis + Notion upload
+│   ├── SKILL.md
+│   ├── prompt-template.md
+│   ├── hot-takes.md
+│   ├── identities.md
 │   └── scripts/
 ├── 字幕/                # Subtitle generation + burn-in
 │   ├── SKILL.md

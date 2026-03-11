@@ -6,7 +6,7 @@ Deepgram 语音转录
   audio_file  - 本地音频/视频文件 (mp3/wav/m4a/mp4)
   language    - 语言代码，如 "en" "zh" (默认 "en")
 
-输出: whisperx_result.json  ← 与 WhisperX 格式完全兼容
+输出: deepgram_transcription.json
 
 API Key: 在 videocut-skills/.env 中设置 DEEPGRAM_API_KEY=your_key
 依赖: pip install requests
@@ -127,7 +127,7 @@ def main():
         "language": language,
     }
 
-    output_file = "whisperx_result.json"
+    output_file = "deepgram_transcription.json"
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2, ensure_ascii=False)
 

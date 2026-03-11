@@ -48,7 +48,7 @@ SKILL_DIR="~/.claude/skills/videocut"
 DICT_FILE="$SKILL_DIR/字幕/词典.txt"
 
 python "$SKILL_DIR/剪口播/scripts/whisperx_transcribe.py" audio.mp3 auto "$DICT_FILE"
-# 输出: whisperx_result.json
+# 输出: deepgram_transcription.json
 # language 参数: "en" 英语 | "zh" 中文 | "auto" 自动检测
 ```
 
@@ -68,7 +68,7 @@ skills
 
 ```javascript
 // WhisperX 格式: segments[].text/start/end，时间单位已是秒
-const result = JSON.parse(fs.readFileSync('whisperx_result.json'));
+const result = JSON.parse(fs.readFileSync('deepgram_transcription.json'));
 const subtitles = result.segments.map((s, i) => ({
   id: i + 1,
   text: s.text.trim(),
