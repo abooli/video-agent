@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rough Cut Review — Chapter 1 (Sample)</title>
+  <script src="https://unpkg.com/wavesurfer.js@7"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #1a1a1a; color: #e0e0e0; display: flex; height: 100vh;
+    }
+    .sidebar {
+      width: 220px; background: #141414; border-right: 1px solid #333;
+      padding: 20px 16px; flex-shrink: 0; display: flex; flex-direction: column;
+    }
+    .sidebar h1 { font-size: 13px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+    .tab-btn {
+      display: flex; align-items: center; justify-content: space-between;
+      width: 100%; padding: 10px 12px; margin-bottom: 4px;
+      background: transparent; border: 1px solid transparent; border-radius: 6px;
+      color: #ccc; font-size: 14px; cursor: pointer; text-align: left;
+    }
+    .tab-btn:hover { background: #1a1a2e; }
+    .tab-btn.active { background: #0f3460; border-color: #4a9eff; color: #fff; }
+    .tab-btn .badge { font-size: 11px; background: #ff9800; color: #000; padding: 2px 6px; border-radius: 10px; font-weight: 600; }
+    .tab-btn.active .badge { background: #4a9eff; color: #fff; }
+    .sidebar-spacer { flex: 1; }
+    .cut-all-btn {
+      width: 100%; padding: 12px; background: #9C27B0; color: #fff;
+      border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; margin-top: 12px;
+    }
+    .cut-all-btn:hover { background: #7B1FA2; }
+    .main { flex: 1; overflow-y: auto; padding: 24px; max-width: 900px; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .controls { position: sticky; top: 0; background: #1a1a1a; padding: 15px 0; border-bottom: 1px solid #333; z-index: 100; }
+    .buttons { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 15px; }
+    button { padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+    button:hover { background: #45a049; }
+    button.danger { background: #f44336; }
+    button.danger:hover { background: #da190b; }
+    select { padding: 8px 12px; background: #333; color: white; border: none; border-radius: 4px; font-size: 14px; }
+    .time-display { font-family: monospace; font-size: 16px; color: #888; }
+    .waveform-container { background: #252525; border-radius: 4px; margin: 10px 0; height: 80px; }
+    .help { font-size: 13px; color: #999; margin-top: 10px; background: #252525; padding: 12px; border-radius: 6px; line-height: 1.8; }
+    .help b { color: #fff; }
+    .content { line-height: 2.5; padding: 20px 0; }
+    .word { display: inline-block; padding: 4px 2px; margin: 2px; border-radius: 3px; cursor: pointer; transition: all 0.15s; }
+    .word:hover { background: #333; }
+    .word.current { background: #2196F3; color: white; }
+    .word.selected { background: #f44336; color: white; text-decoration: line-through; }
+    .word.ai-selected { background: #ff9800; color: white; }
+    .word.ai-selected.selected { background: #f44336; }
+    .gap { display: inline-block; background: #333; color: #888; padding: 4px 8px; margin: 2px; border-radius: 3px; font-size: 12px; cursor: pointer; }
+    .gap:hover { background: #444; }
+    .gap.selected { background: #f44336; color: white; }
+    .gap.ai-selected { background: #ff9800; color: white; }
+    .gap.ai-selected.selected { background: #f44336; }
+    .stats { margin-top: 10px; padding: 10px; background: #252525; border-radius: 4px; font-size: 14px; }
+    .loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
+    .loading-overlay.show { display: flex; }
+    .loading-spinner { width: 60px; height: 60px; border: 4px solid #333; border-top-color: #9C27B0; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { margin-top: 20px; font-size: 18px; color: #fff; }
+    .demo-banner { background: #333; color: #ff9800; text-align: center; padding: 8px; font-size: 13px; border-bottom: 1px solid #555; }
+  </style>
+</head>
+<body>
+  <div class="loading-overlay" id="loadingOverlay"><div class="loading-spinner"></div><div class="loading-text">🎬 Cutting...</div></div>
+  <div class="sidebar">
+    <h1>Chapter 1</h1>
+    <div class="demo-banner">📌 Static Demo</div>
+    <button class="tab-btn active" data-clip="D1-08">D1-08 <span class="badge">12</span></button>
+    <button class="tab-btn" data-clip="D3-03">D3-03 <span class="badge">7</span></button>
+    <button class="tab-btn" data-clip="D2-01">D2-01 <span class="badge">1</span></button>
+    <div class="sidebar-spacer"></div>
+    <button class="cut-all-btn" id="cutAllBtn">✂️ Cut All Clips</button>
+  </div>
+  <div class="main">
+    <div class="tab-panel active" id="panel-D1-08">
+      <div class="controls">
+        <div class="buttons">
+          <button class="play-pause-btn" data-clip="D1-08">▶️ Play / Pause</button>
+          <select class="speed-select" data-clip="D1-08"><option value="0.5">0.5x</option><option value="0.75">0.75x</option><option value="1" selected>1x</option><option value="1.25">1.25x</option><option value="1.5">1.5x</option><option value="2">2x</option></select>
+          <button class="copy-btn" data-clip="D1-08">📋 Copy</button>
+          <button style="background:#9C27B0" class="cut-btn" data-clip="D1-08">🎬 Cut</button>
+          <button class="danger clear-btn" data-clip="D1-08">🗑️ Clear</button>
+          <span class="time-display" id="time-D1-08">00:00 / 00:09</span>
+        </div>
+        <div class="waveform-container" id="waveform-D1-08"></div>
+        <div class="help"><div><b>🖱️</b> Click=jump | Dbl-click=toggle | Shift+drag=batch</div><div><b>⌨️</b> Space=play | ←→=1s | Shift+←→=5s</div><div><b>🎨</b> <span style="color:#ff9800">Orange</span>=AI | <span style="color:#f44336">Red</span>=delete</div></div>
+      </div>
+      <div class="content" id="content-D1-08"></div>
+      <div class="stats" id="stats-D1-08"></div>
+    </div>
+    <div class="tab-panel" id="panel-D3-03">
+      <div class="controls">
+        <div class="buttons">
+          <button class="play-pause-btn" data-clip="D3-03">▶️ Play / Pause</button>
+          <select class="speed-select" data-clip="D3-03"><option value="1" selected>1x</option><option value="1.5">1.5x</option><option value="2">2x</option></select>
+          <button class="copy-btn" data-clip="D3-03">📋 Copy</button>
+          <button style="background:#9C27B0" class="cut-btn" data-clip="D3-03">🎬 Cut</button>
+          <button class="danger clear-btn" data-clip="D3-03">🗑️ Clear</button>
+          <span class="time-display" id="time-D3-03">00:00 / 00:08</span>
+        </div>
+        <div class="waveform-container" id="waveform-D3-03"></div>
+        <div class="help"><div><b>🖱️</b> Click=jump | Dbl-click=toggle | Shift+drag=batch</div><div><b>⌨️</b> Space=play | ←→=1s</div><div><b>🎨</b> <span style="color:#ff9800">Orange</span>=AI | <span style="color:#f44336">Red</span>=delete</div></div>
+      </div>
+      <div class="content" id="content-D3-03"></div>
+      <div class="stats" id="stats-D3-03"></div>
+    </div>
+    <div class="tab-panel" id="panel-D2-01">
+      <div class="controls">
+        <div class="buttons">
+          <button class="play-pause-btn" data-clip="D2-01">▶️ Play / Pause</button>
+          <select class="speed-select" data-clip="D2-01"><option value="1" selected>1x</option><option value="1.5">1.5x</option></select>
+          <button class="copy-btn" data-clip="D2-01">📋 Copy</button>
+          <button style="background:#9C27B0" class="cut-btn" data-clip="D2-01">🎬 Cut</button>
+          <button class="danger clear-btn" data-clip="D2-01">🗑️ Clear</button>
+          <span class="time-display" id="time-D2-01">00:00 / 00:04</span>
+        </div>
+        <div class="waveform-container" id="waveform-D2-01"></div>
+        <div class="help"><div><b>🖱️</b> Click=jump | Dbl-click=toggle | Shift+drag=batch</div><div><b>⌨️</b> Space=play | ←→=1s</div><div><b>🎨</b> <span style="color:#ff9800">Orange</span>=AI | <span style="color:#f44336">Red</span>=delete</div></div>
+      </div>
+      <div class="content" id="content-D2-01"></div>
+      <div class="stats" id="stats-D2-01"></div>
+    </div>
+  </div>
+  <script>
+    // Sample data — same word format as podcast-rough-cut
+    var CLIPS = ['D1-08','D3-03','D2-01'];
+    var CLIP_WORDS = {
+      'D1-08': [
+        {"text":"So","start":0.12,"end":0.28,"isGap":false},{"text":"today","start":0.30,"end":0.58,"isGap":false},
+        {"text":"we're","start":0.60,"end":0.78,"isGap":false},{"text":"going","start":0.80,"end":1.02,"isGap":false},
+        {"text":"to","start":1.04,"end":1.12,"isGap":false},{"text":"talk","start":1.14,"end":1.38,"isGap":false},
+        {"text":"about","start":1.40,"end":1.68,"isGap":false},{"text":"","start":1.68,"end":2.80,"isGap":true},
+        {"text":"um","start":2.80,"end":3.10,"isGap":false},{"text":"","start":3.10,"end":3.65,"isGap":true},
+        {"text":"so","start":3.65,"end":3.82,"isGap":false},{"text":"today","start":3.84,"end":4.12,"isGap":false},
+        {"text":"we're","start":4.14,"end":4.32,"isGap":false},{"text":"going","start":4.34,"end":4.56,"isGap":false},
+        {"text":"to","start":4.58,"end":4.66,"isGap":false},{"text":"talk","start":4.68,"end":4.92,"isGap":false},
+        {"text":"about","start":4.94,"end":5.22,"isGap":false},{"text":"how","start":5.24,"end":5.42,"isGap":false},
+        {"text":"I","start":5.44,"end":5.52,"isGap":false},{"text":"moved","start":5.54,"end":5.82,"isGap":false},
+        {"text":"to","start":5.84,"end":5.92,"isGap":false},{"text":"Seattle","start":5.94,"end":6.38,"isGap":false},
+        {"text":"","start":6.38,"end":7.48,"isGap":true},{"text":"and","start":7.48,"end":7.62,"isGap":false},
+        {"text":"it","start":7.64,"end":7.78,"isGap":false},{"text":"was","start":7.80,"end":8.02,"isGap":false},
+        {"text":"honestly","start":8.04,"end":8.52,"isGap":false},{"text":"the","start":8.54,"end":8.66,"isGap":false},
+        {"text":"best","start":8.68,"end":8.98,"isGap":false},{"text":"decision","start":9.00,"end":9.48,"isGap":false},
+        {"text":"ever","start":9.50,"end":9.82,"isGap":false}
+      ],
+      'D3-03': [
+        {"text":"And","start":0.10,"end":0.28,"isGap":false},{"text":"then","start":0.30,"end":0.52,"isGap":false},
+        {"text":"I","start":0.54,"end":0.62,"isGap":false},{"text":"realized","start":0.64,"end":1.12,"isGap":false},
+        {"text":"","start":1.12,"end":2.20,"isGap":true},{"text":"uh","start":2.20,"end":2.48,"isGap":false},
+        {"text":"","start":2.48,"end":3.10,"isGap":true},{"text":"I","start":3.10,"end":3.22,"isGap":false},
+        {"text":"realized","start":3.24,"end":3.72,"isGap":false},{"text":"that","start":3.74,"end":3.92,"isGap":false},
+        {"text":"cooking","start":3.94,"end":4.32,"isGap":false},{"text":"is","start":4.34,"end":4.48,"isGap":false},
+        {"text":"actually","start":4.50,"end":4.98,"isGap":false},{"text":"really","start":5.00,"end":5.32,"isGap":false},
+        {"text":"therapeutic","start":5.34,"end":6.02,"isGap":false},{"text":"","start":6.02,"end":6.85,"isGap":true},
+        {"text":"like","start":6.85,"end":7.08,"isGap":false},{"text":"you","start":7.10,"end":7.24,"isGap":false},
+        {"text":"just","start":7.26,"end":7.48,"isGap":false},{"text":"zone","start":7.50,"end":7.78,"isGap":false},
+        {"text":"out","start":7.80,"end":8.02,"isGap":false}
+      ],
+      'D2-01': [
+        {"text":"The","start":0.08,"end":0.22,"isGap":false},{"text":"thing","start":0.24,"end":0.48,"isGap":false},
+        {"text":"about","start":0.50,"end":0.72,"isGap":false},{"text":"living","start":0.74,"end":1.08,"isGap":false},
+        {"text":"alone","start":1.10,"end":1.42,"isGap":false},{"text":"","start":1.42,"end":2.60,"isGap":true},
+        {"text":"is","start":2.60,"end":2.78,"isGap":false},{"text":"that","start":2.80,"end":3.02,"isGap":false},
+        {"text":"you","start":3.04,"end":3.18,"isGap":false},{"text":"learn","start":3.20,"end":3.48,"isGap":false},
+        {"text":"so","start":3.50,"end":3.68,"isGap":false},{"text":"much","start":3.70,"end":3.98,"isGap":false},
+        {"text":"about","start":4.00,"end":4.28,"isGap":false},{"text":"yourself","start":4.30,"end":4.82,"isGap":false}
+      ]
+    };
+    var CLIP_AUTO = {
+      'D1-08': [0,1,2,3,4,5,6,7,8,9,10,22],
+      'D3-03': [0,1,2,3,4,5,6],
+      'D2-01': [5]
+    };
+
+    // Per-clip state with mock playback (no real audio in static demo)
+    var clipState = {};
+    var activeClip = CLIPS[0];
+
+    CLIPS.forEach(function(clip) {
+      var words = CLIP_WORDS[clip];
+      var autoSelected = new Set(CLIP_AUTO[clip]);
+      clipState[clip] = {
+        words: words, autoSelected: autoSelected, selected: new Set(autoSelected),
+        elements: [], _selecting: false, _selectStart: -1, _selectMode: 'add',
+        mockTime: 0, mockPlaying: false, mockInterval: null,
+        mockDuration: words[words.length - 1].end
+      };
+      renderClip(clip);
+    });
+
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
+        document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});
+        btn.classList.add('active');
+        document.getElementById('panel-' + btn.dataset.clip).classList.add('active');
+        activeClip = btn.dataset.clip;
+      });
+    });
+
+    function formatTime(sec) {
+      var m = Math.floor(sec/60), s = Math.floor(sec%60);
+      return m.toString().padStart(2,'0') + ':' + s.toString().padStart(2,'0');
+    }
+
+    function renderClip(clip) {
+      var state = clipState[clip];
+      var container = document.getElementById('content-' + clip);
+      container.innerHTML = ''; state.elements = [];
+      state.words.forEach(function(word, i) {
+        var div = document.createElement('div');
+        div.className = word.isGap ? 'gap' : 'word';
+        if (state.selected.has(i)) div.classList.add('selected');
+        else if (state.autoSelected.has(i)) div.classList.add('ai-selected');
+        div.textContent = word.isGap ? ('⏸ ' + (word.end - word.start).toFixed(1) + 's') : word.text;
+        div.dataset.index = i; div.dataset.clip = clip;
+        div.onclick = function() { if (!state._selecting) { state.mockTime = word.start; updateTime(clip); highlightCurrent(clip); } };
+        div.ondblclick = function() { toggleWord(clip, i); };
+        div.onmousedown = function(e) {
+          if (e.shiftKey) { state._selecting = true; state._selectStart = i; state._selectMode = state.selected.has(i) ? 'remove' : 'add'; e.preventDefault(); }
+        };
+        container.appendChild(div); state.elements.push(div);
+      });
+      updateStats(clip);
+    }
+
+    function toggleWord(clip, i) {
+      var state = clipState[clip];
+      if (state.selected.has(i)) {
+        state.selected.delete(i); state.elements[i].classList.remove('selected');
+        if (state.autoSelected.has(i)) state.elements[i].classList.add('ai-selected');
+      } else {
+        state.selected.add(i); state.elements[i].classList.add('selected'); state.elements[i].classList.remove('ai-selected');
+      }
+      updateStats(clip); updateBadge(clip);
+    }
+    function updateStats(clip) {
+      var state = clipState[clip], dur = 0;
+      state.selected.forEach(function(i) { dur += state.words[i].end - state.words[i].start; });
+      document.getElementById('stats-' + clip).textContent = 'Selected: ' + state.selected.size + ' segments, total: ' + dur.toFixed(2) + 's';
+    }
+    function updateBadge(clip) {
+      var btn = document.querySelector('.tab-btn[data-clip="' + clip + '"] .badge');
+      if (btn) btn.textContent = clipState[clip].selected.size;
+    }
+    function updateTime(clip) {
+      var s = clipState[clip];
+      document.getElementById('time-' + clip).textContent = formatTime(s.mockTime) + ' / ' + formatTime(s.mockDuration);
+    }
+    function highlightCurrent(clip) {
+      var s = clipState[clip];
+      s.elements.forEach(function(el, i) {
+        var w = s.words[i];
+        if (s.mockTime >= w.start && s.mockTime < w.end) { el.classList.add('current'); el.scrollIntoView({behavior:'smooth',block:'center'}); }
+        else { el.classList.remove('current'); }
+      });
+    }
+
+    // Shift+drag
+    document.addEventListener('mousemove', function(e) {
+      var target = e.target.closest('[data-index]');
+      if (!target) return;
+      var clip = target.dataset.clip, state = clipState[clip];
+      if (!state._selecting) return;
+      var i = parseInt(target.dataset.index);
+      var min = Math.min(state._selectStart, i), max = Math.max(state._selectStart, i);
+      for (var j = min; j <= max; j++) {
+        if (state._selectMode === 'add') { state.selected.add(j); state.elements[j].classList.add('selected'); state.elements[j].classList.remove('ai-selected'); }
+        else { state.selected.delete(j); state.elements[j].classList.remove('selected'); if (state.autoSelected.has(j)) state.elements[j].classList.add('ai-selected'); }
+      }
+      updateStats(clip); updateBadge(clip);
+    });
+    document.addEventListener('mouseup', function() { CLIPS.forEach(function(c){clipState[c]._selecting=false;}); });
+
+    // Mock playback
+    function mockPlayPause(clip) {
+      var s = clipState[clip];
+      s.mockPlaying = !s.mockPlaying;
+      if (s.mockPlaying) {
+        s.mockInterval = setInterval(function() {
+          s.mockTime += 0.05;
+          if (s.mockTime >= s.mockDuration) { s.mockPlaying = false; clearInterval(s.mockInterval); }
+          var sorted = Array.from(s.selected).sort(function(a,b){return a-b;});
+          for (var si = 0; si < sorted.length; si++) {
+            var w = s.words[sorted[si]];
+            if (s.mockTime >= w.start && s.mockTime < w.end) {
+              var end = w.end, j = si + 1;
+              while (j < sorted.length) { var nw = s.words[sorted[j]]; if (nw.start - end < 0.1) { end = nw.end; j++; } else break; }
+              s.mockTime = end; break;
+            }
+          }
+          updateTime(clip); highlightCurrent(clip);
+        }, 50);
+      } else { clearInterval(s.mockInterval); }
+    }
+
+    // Button handlers
+    document.querySelectorAll('.play-pause-btn').forEach(function(btn) { btn.onclick = function() { mockPlayPause(btn.dataset.clip); }; });
+    document.querySelectorAll('.clear-btn').forEach(function(btn) {
+      btn.onclick = function() {
+        var state = clipState[btn.dataset.clip]; state.selected.clear();
+        state.elements.forEach(function(el, i) { el.classList.remove('selected'); if (state.autoSelected.has(i)) el.classList.add('ai-selected'); });
+        updateStats(btn.dataset.clip); updateBadge(btn.dataset.clip);
+      };
+    });
+    document.querySelectorAll('.copy-btn').forEach(function(btn) {
+      btn.onclick = function() {
+        var state = clipState[btn.dataset.clip], segs = [];
+        Array.from(state.selected).sort(function(a,b){return a-b;}).forEach(function(i) { segs.push({start:state.words[i].start,end:state.words[i].end}); });
+        navigator.clipboard.writeText(JSON.stringify(segs,null,2)).then(function(){alert('Copied '+segs.length+' segments');});
+      };
+    });
+    document.querySelectorAll('.cut-btn').forEach(function(btn) {
+      btn.onclick = function() { alert('🎬 Would cut '+btn.dataset.clip+' via review_server.js\n\nThis is a static demo.'); };
+    });
+    document.getElementById('cutAllBtn').onclick = function() {
+      var summary = CLIPS.map(function(c){return c+': '+clipState[c].selected.size+' segments';}).join('\n');
+      alert('🎬 Would cut all clips:\n\n'+summary+'\n\nThis is a static demo.');
+    };
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+      if (e.code === 'Space') { e.preventDefault(); mockPlayPause(activeClip); }
+      else if (e.code === 'ArrowLeft') { var s = clipState[activeClip]; s.mockTime = Math.max(0, s.mockTime-(e.shiftKey?5:1)); updateTime(activeClip); highlightCurrent(activeClip); }
+      else if (e.code === 'ArrowRight') { var s = clipState[activeClip]; s.mockTime = Math.min(s.mockDuration, s.mockTime+(e.shiftKey?5:1)); updateTime(activeClip); highlightCurrent(activeClip); }
+    });
+  </script>
+</body>
+</html>
