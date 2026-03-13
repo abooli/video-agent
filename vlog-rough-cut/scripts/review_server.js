@@ -22,7 +22,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const url = require('url');
 
 const [PORT, BATCH_DIR, AUDIO_DIR, VLOGS_DIR] = process.argv.slice(2);
@@ -38,6 +38,7 @@ const MIME_TYPES = {
   '.txt': 'text/plain',
   '.md': 'text/plain',
   '.mp3': 'audio/mpeg',
+  '.m4a': 'audio/mp4',
   '.mp4': 'video/mp4',
   '.js': 'application/javascript',
   '.css': 'text/css',
@@ -74,41 +75,54 @@ function readBody(req) {
 }
 
 /**
- * Build FFmpeg select filter to KEEP segments that are NOT in the selected (delete) list.
- * Returns a filter string for -vf select='...' and -af aselect='...'
+ * Build keep ranges from words + selected indices.
+ * Returns array of {start, end} time ranges to KEEP.
  */
-function buildKeepFilter(words, selectedIndices) {
+function buildKeepRanges(words, selectedIndices) {
   const deleteSet = new Set(selectedIndices);
-
-  // Build time ranges to KEEP (everything not selected)
   const keepRanges = [];
   let keepStart = null;
 
   for (let i = 0; i < words.length; i++) {
     const w = words[i];
     if (deleteSet.has(i)) {
-      // End current keep range
       if (keepStart !== null) {
         keepRanges.push({ start: keepStart, end: w.start });
         keepStart = null;
       }
     } else {
-      // Start or continue keep range
       if (keepStart === null) keepStart = w.start;
     }
   }
-  // Close final range
   if (keepStart !== null && words.length > 0) {
     keepRanges.push({ start: keepStart, end: words[words.length - 1].end });
   }
+  return keepRanges;
+}
 
+/**
+ * Build FFmpeg trim+concat filtergraph for VFR footage.
+ * Uses trim/atrim per segment then concat — works correctly with variable frame rate .mov files.
+ */
+function buildTrimConcatFilter(keepRanges) {
   if (keepRanges.length === 0) return null;
 
-  // Build FFmpeg between() expressions
-  const parts = keepRanges.map(r =>
-    `between(t,${r.start.toFixed(3)},${r.end.toFixed(3)})`
+  const vParts = keepRanges.map((r, i) =>
+    `[0:v]trim=start=${r.start.toFixed(3)}:end=${r.end.toFixed(3)},setpts=PTS-STARTPTS[v${i}]`
   );
-  return parts.join('+');
+  const aParts = keepRanges.map((r, i) =>
+    `[0:a]atrim=start=${r.start.toFixed(3)}:end=${r.end.toFixed(3)},asetpts=PTS-STARTPTS[a${i}]`
+  );
+  const vInputs = keepRanges.map((_, i) => `[v${i}]`).join('');
+  const aInputs = keepRanges.map((_, i) => `[a${i}]`).join('');
+  const n = keepRanges.length;
+
+  return [
+    ...vParts,
+    ...aParts,
+    `${vInputs}concat=n=${n}:v=1:a=0[outv]`,
+    `${aInputs}concat=n=${n}:v=0:a=1[outa]`,
+  ].join(';');
 }
 
 /**
@@ -140,21 +154,21 @@ async function executeCut(clip, selectedIndices) {
   }
 
   const words = JSON.parse(fs.readFileSync(wordsPath, 'utf-8'));
-  const filter = buildKeepFilter(words, selectedIndices);
-  if (!filter) {
+  const keepRanges = buildKeepRanges(words, selectedIndices);
+  if (keepRanges.length === 0) {
     return { ok: false, error: 'Nothing to keep — all segments selected for deletion' };
   }
+  const filterGraph = buildTrimConcatFilter(keepRanges);
 
   const sourceVideo = findSourceVideo(clip);
   if (!sourceVideo) {
-    // Save the selection so user can run FFmpeg manually
     const cutDir = path.join(BATCH_DIR, 'cut_output');
     fs.mkdirSync(cutDir, { recursive: true });
     const selectionPath = path.join(cutDir, `${clip}_selection.json`);
     fs.writeFileSync(selectionPath, JSON.stringify({
       clip,
       selected: selectedIndices,
-      filter,
+      keepRanges,
       note: 'Source video not found. Run FFmpeg manually with this filter.',
     }, null, 2));
     return {
@@ -167,19 +181,20 @@ async function executeCut(clip, selectedIndices) {
   fs.mkdirSync(cutDir, { recursive: true });
   const outputPath = path.join(cutDir, `${clip}_cut.mp4`);
 
-  const cmd = [
-    'ffmpeg',
-    '-i', `"${sourceVideo}"`,
-    '-vf', `"select='${filter}', setpts=N/FRAME_RATE/TB"`,
-    '-af', `"aselect='${filter}', asetpts=N/SR/TB"`,
-    '-y', `"${outputPath}"`,
-  ].join(' ');
+  const ffmpegArgs = [
+    '-i', sourceVideo,
+    '-filter_complex', filterGraph,
+    '-map', '[outv]', '-map', '[outa]',
+    '-c:v', 'libx264', '-crf', '18', '-preset', 'fast',
+    '-c:a', 'aac', '-b:a', '192k',
+    '-y', outputPath,
+  ];
 
   console.log(`Cutting ${clip}...`);
-  console.log(cmd);
+  console.log('ffmpeg', ffmpegArgs.join(' '));
 
   try {
-    execSync(cmd, { stdio: 'pipe', timeout: 600000 });
+    execFileSync('ffmpeg', ffmpegArgs, { stdio: 'pipe', timeout: 600000 });
     const sizeMB = (fs.statSync(outputPath).size / 1024 / 1024).toFixed(1);
     console.log(`✅ ${clip} → ${outputPath} (${sizeMB} MB)`);
     return { ok: true, output: outputPath, size: sizeMB + ' MB' };

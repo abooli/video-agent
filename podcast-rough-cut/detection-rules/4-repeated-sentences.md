@@ -67,6 +67,30 @@ Sentence B: "So I was trying to set up the deployment"
 "So I was going to show you how to set up the whole pipeline" → KEEP
 ```
 
+## ⚠️ Content Coverage Check (required before deleting an earlier complete take)
+
+Before deleting an earlier complete take because a later sentence exists, verify the later sentence covers **all** the same information. If not, keep the earlier one too — prefer a mild duplicate over content loss.
+
+```
+❌ Wrong assumption: "later = better, so delete earlier"
+
+S2: "my rent is $1,500. So I saved a thousand dollars every month."  ← complete take
+S4: "so I saved a thousand dollars every single month."              ← also complete, but MISSING "$1,500"
+
+→ Keep S2. S4 does NOT fully replace it.
+```
+
+```
+✓ Correct: only delete the earlier complete take if the later one says everything the earlier one said.
+
+S2: "I saved a thousand dollars every month."   ← complete take
+S4: "I saved a thousand dollars every single month in fixed costs." ← complete + more specific
+
+→ Delete S2, keep S4. S4 fully covers S2.
+```
+
+**How to check:** read the earlier sentence and ask "is every piece of information in here also said in the kept sentence?" If no → keep both. If yes → delete the earlier one.
+
 ## Common Mistakes
 
 ```
@@ -75,4 +99,7 @@ Sentence B: "So I was trying to set up the deployment"
 
 ❌ Only compare adjacent sentences
 ✓ Also compare skip-one (middle may be a fragment)
+
+❌ Delete all takes in a chain, keeping only the chronologically last sentence
+✓ Keep the last sentence that is COMPLETE and covers ALL the information
 ```

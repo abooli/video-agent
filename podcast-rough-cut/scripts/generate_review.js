@@ -43,8 +43,8 @@ if (!fs.existsSync(templatePath)) {
 }
 
 let html = fs.readFileSync(templatePath, 'utf8');
-html = html.replace('/*__WORDS_DATA__*/', JSON.stringify(words));
-html = html.replace('/*__AUTO_SELECTED_DATA__*/', JSON.stringify(autoSelected));
+html = html.replace('/*__WORDS_DATA__*/[]', JSON.stringify(words));
+html = html.replace('/*__AUTO_SELECTED_DATA__*/[]', JSON.stringify(autoSelected));
 html = html.replace('__AUDIO_FILE__', audioBaseName);
 
 fs.writeFileSync('review.html', html);

@@ -6,6 +6,7 @@ User preferences for AI stumble analysis. The agent reads these rules during the
 
 | File | Type | Summary |
 |------|------|---------|
+| 0-fuzzy-match.md | Reference | Word equivalence: singular/plural, tense variants, conjunctions — used by rules 5, 6, 11 |
 | 1-core-principles.md | Principle | Delete earlier, keep later |
 | 2-filler-words.md | Preference | um, uh, ah + deletion boundaries |
 | 3-silence-handling.md | Threshold | ≤0.5s ignore, 0.5–1s optional, >1s suggest delete |
@@ -16,6 +17,8 @@ User preferences for AI stumble analysis. The agent reads these rules during the
 | 8-re-speak-correction.md | Preference | Partial repeat, negation correction, interrupted word |
 | 9-incomplete-sentences.md | Preference | Sentence cut off mid-thought |
 | 10-orphaned-silence-cleanup.md | Sanity check | Delete short silences stranded between two deleted segments |
+| 11-phrase-restart.md | Preference | Phrase + short gap (<0.5s) + same/near-identical phrase + completion → delete earlier attempts. Also covers near-identical restarts (same ≥2 opening words, different wording) within a sentence block. |
+| 12-content-audit.md | **Final audit** | After all rules applied: extract topic summary, verify each topic has ≥1 non-deleted sentence, restore last complete take for any topic with zero coverage. |
 
 ## AI Analysis Priority Order
 
@@ -26,7 +29,13 @@ User preferences for AI stumble analysis. The agent reads these rules during the
 5. **Stutter words** → delete earlier part
 6. **Re-speak correction** → delete earlier part (partial repeat, negation, interrupted word)
 7. **Filler words** → flag for manual review
+8. **Phrase restart** → within a sentence, phrase + short gap (<0.5s) + same/near-identical phrase + continuation → delete first phrase + gap
+9. **Content audit** → after all rules: extract topic list from original, verify each topic has ≥1 non-deleted sentence, restore last complete take for gaps
 
 ## Core Principle
 
 **Delete earlier, keep later**: the later take is usually more complete — delete the earlier attempt, keep the later one.
+
+**Content coverage check**: before deleting an earlier complete take, verify the later kept sentence covers *all* the same information. If not, keep both — prefer duplicates over content loss.
+
+**Final sanity check**: after marking all deletions, confirm every key fact, section intro, and transition is still audible in at least one non-deleted sentence.

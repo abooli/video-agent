@@ -2,7 +2,7 @@
 
 ## Definition
 
-Within a single sentence, a phrase A appears twice with 1–3 words wedged in between.
+Within a single sentence, a phrase A appears twice with 1–3 words wedged in between. **A matches fuzzily** — singular/plural, tense variations, and leading conjunctions are treated as the same phrase (see Rule 0: fuzzy match).
 
 ## Pattern
 
