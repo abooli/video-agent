@@ -228,6 +228,23 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // GET /saved-selections → saved_selections.json
+    if (req.method === 'GET' && pathname === '/saved-selections') {
+      sendFile(res, path.join(BATCH_DIR, 'saved_selections.json'));
+      return;
+    }
+
+    // POST /save → save all clips' current selections
+    if (req.method === 'POST' && pathname === '/save') {
+      const body = await readBody(req);
+      const savePath = path.join(BATCH_DIR, 'saved_selections.json');
+      fs.writeFileSync(savePath, JSON.stringify(body, null, 2));
+      const totalSegments = Object.values(body).reduce((sum, arr) => sum + arr.length, 0);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, total: totalSegments }));
+      return;
+    }
+
     // GET /data/:clip/:file → clip data files
     const dataMatch = pathname.match(/^\/data\/([^/]+)\/(.+)$/);
     if (req.method === 'GET' && dataMatch) {

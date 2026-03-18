@@ -57,11 +57,27 @@ incomplete sentence (entire) + [silence] + complete sentence
 - Sentence just stops — semantically incomplete
 - Speaker restarts with a different phrasing
 
+## Boundary Expansion Check (run after marking the incomplete sentence)
+
+After marking an incomplete sentence for deletion, check the **immediately adjacent speech fragments** on both sides:
+
+- If the adjacent fragment is ≤ 5 words AND does not form a complete thought on its own AND its other neighbor is also being deleted → expand deletion to include it
+- This prevents leaving single-word or short-phrase orphans like "and", "so", "but", "And because of that" stranded between two deleted zones
+
+```
+[deleted zone] → [short fragment ≤5 words] → [deleted zone]
+                          ↓
+               expand deletion to include it
+```
+
 ## Common Mistake
 
 ```
 ❌ Only delete the trailing word ("I—")
 ✓ Delete "So the reason I—" (the entire incomplete sentence)
+
+❌ Delete the incomplete sentence but leave a 3-word orphan fragment between two deletions
+✓ Expand the deletion to include that orphan fragment
 ```
 
-**Remember**: the problem isn't just the ending — the whole sentence was abandoned, so delete the whole thing.
+**Remember**: the problem isn't just the ending — the whole sentence was abandoned, so delete the whole thing. Then check neighbors.

@@ -32,10 +32,16 @@ User preferences for AI stumble analysis. The agent reads these rules during the
 8. **Phrase restart** → within a sentence, phrase + short gap (<0.5s) + same/near-identical phrase + continuation → delete first phrase + gap
 9. **Content audit** → after all rules: extract topic list from original, verify each topic has ≥1 non-deleted sentence, restore last complete take for gaps
 
-## Core Principle
+## Core Principles
 
 **Delete earlier, keep later**: the later take is usually more complete — delete the earlier attempt, keep the later one.
 
+**Longest consecutive run (tie-breaker)**: when two or more complete takes exist and content coverage is equal, keep the take that maximizes uninterrupted kept-segment length when combined with its neighbors. See rule 1 for details.
+
 **Content coverage check**: before deleting an earlier complete take, verify the later kept sentence covers *all* the same information. If not, keep both — prefer duplicates over content loss.
+
+**Orphan cleanup (Rule 10)**: after all rules are applied, delete any silence or short speech (≤8 words) that is stranded between deletion zones.
+
+**Calibration target**: aim to delete ~60–70% of segments in a typical talking-head vlog. If deletions are well under 50%, the rules are likely under-detecting.
 
 **Final sanity check**: after marking all deletions, confirm every key fact, section intro, and transition is still audible in at least one non-deleted sentence.

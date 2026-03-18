@@ -6,6 +6,16 @@ The later take is usually more complete, so:
 - Delete the earlier part (stumble / incomplete sentence)
 - Keep the later part (complete sentence)
 
+## Longest Consecutive Run (tie-breaker when both takes are complete)
+
+When two or more complete takes of the same content exist and the content-coverage check does not clearly favor one, keep the take that produces the **longest uninterrupted kept segment** when merged with the surrounding kept content on both sides.
+
+- Scan the window: [last kept word before this cluster] … [first kept word after this cluster]
+- For each candidate take, compute: (gap to prev kept end) + (take duration) + (gap to next kept start)
+- Keep the candidate with the smallest total gap (maximum continuity); delete the others
+
+This avoids choppy edits where the shorter take would leave isolated fragments on either side.
+
 ## Exceptions
 
 If the user explicitly says "the later one sounds better" → delete earlier, keep later.

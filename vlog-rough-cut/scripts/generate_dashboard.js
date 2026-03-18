@@ -63,6 +63,7 @@ function main() {
           <button style="background:#9C27B0" class="cut-btn" data-clip="${clip}">🎬 Cut</button>
           <button class="danger clear-btn" data-clip="${clip}">🗑️ Clear</button>
           <span class="time-display" id="time-${clip}">00:00 / 00:00</span>
+          <span id="saveStatus-${clip}" style="font-size:13px;color:#888"></span>
         </div>
         <div class="waveform-container" id="waveform-${clip}"></div>
         <div class="help">

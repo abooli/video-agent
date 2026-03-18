@@ -106,17 +106,28 @@ const server = http.createServer((req, res) => {
         const deletedDuration = segments.reduce((s, seg) => s + (seg.end - seg.start), 0);
         const newDuration = originalDuration - deletedDuration;
 
-        // Build ffmpeg select filter
-        const selectExpr = keeps.map(([s, e]) => `between(t,${s},${e})`).join('+');
+        // Build trim+atrim+concat filter (sync-safe: audio & video trimmed together)
         const outputFile = VIDEO_FILE.replace(/(\.[^.]+)$/, '_cut$1');
+
+        const filterParts = [];
+        const concatInputs = [];
+        keeps.forEach(([s, e], i) => {
+          filterParts.push(`[0:v]trim=start=${s}:end=${e},setpts=PTS-STARTPTS[v${i}]`);
+          filterParts.push(`[0:a]atrim=start=${s}:end=${e},asetpts=PTS-STARTPTS[a${i}]`);
+          concatInputs.push(`[v${i}][a${i}]`);
+        });
+        // aresample=async=1000: resync audio to video after concat, compensating for
+        // per-segment frame/sample boundary quantization drift (up to ~33ms per cut).
+        filterParts.push(`${concatInputs.join('')}concat=n=${keeps.length}:v=1:a=1[outv][outa_pre];[outa_pre]aresample=async=1000[outa]`);
+        const filterComplex = filterParts.join(';');
 
         execSync(
           `ffmpeg -y -i "file:${VIDEO_FILE}" ` +
-          `-vf "select='${selectExpr}',setpts=N/FRAME_RATE/TB" ` +
-          `-af "aselect='${selectExpr}',asetpts=N/SR/TB" ` +
+          `-filter_complex "${filterComplex}" ` +
+          `-map "[outv]" -map "[outa]" ` +
           `-c:v ${enc.name} ${enc.args} -c:a aac ` +
           `"${outputFile}"`,
-          { stdio: 'pipe' }
+          { stdio: 'pipe', maxBuffer: 100 * 1024 * 1024 }
         );
 
         res.writeHead(200, { 'Content-Type': 'application/json' });

@@ -59,13 +59,18 @@ Sentence B: "So I was trying to set up the deployment"
 
 ## Multiple Repeats
 
-3+ consecutive attempts — delete all incomplete ones, keep the last complete one:
+3+ consecutive attempts — delete all incomplete ones, then among the remaining complete takes apply the **Longest Consecutive Run** rule to pick which to keep:
 
 ```
-"So I was going to show you the"     → delete
-"So I was going to show you how"     → delete
-"So I was going to show you how to set up the whole pipeline" → KEEP
+"So I was going to show you the"                              → delete (incomplete)
+"So I was going to show you how"                              → delete (incomplete)
+"So I was going to show you how to set up the whole pipeline" → candidate (complete)
+"So I was going to show you how to set up everything"         → candidate (complete, later)
 ```
+
+Default: keep the **later** complete take unless the Longest Consecutive Run rule favors the earlier one.
+
+⚠️ Do NOT blindly delete all but the chronologically last sentence. First confirm the last sentence is complete AND covers all information. If the last complete take is shorter than an earlier one, the earlier one may be the better keep.
 
 ## ⚠️ Content Coverage Check (required before deleting an earlier complete take)
 
