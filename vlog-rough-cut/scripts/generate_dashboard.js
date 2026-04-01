@@ -59,7 +59,7 @@ function main() {
             <option value="1" selected>1x</option><option value="1.25">1.25x</option>
             <option value="1.5">1.5x</option><option value="2">2x</option>
           </select>
-          <button class="copy-btn" data-clip="${clip}">📋 Copy</button>
+          <button class="copy-btn" data-clip="${clip}">📋 Copy Speech</button>
           <button style="background:#9C27B0" class="cut-btn" data-clip="${clip}">🎬 Cut</button>
           <button class="danger clear-btn" data-clip="${clip}">🗑️ Clear</button>
           <span class="time-display" id="time-${clip}">00:00 / 00:00</span>
