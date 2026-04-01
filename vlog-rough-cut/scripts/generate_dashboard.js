@@ -32,7 +32,7 @@ function main() {
   const clipData = {};
   for (const clip of args.clips) {
     const wordsFile = path.join(args.batchDir, clip, '1_subtitles_words.json');
-    const selectedFile = path.join(args.batchDir, clip, '4_auto_selected.json');
+    const selectedFile = path.join(args.batchDir, clip, '3_auto_selected.json');
     if (!fs.existsSync(wordsFile)) { console.error('Missing: ' + wordsFile); process.exit(1); }
     clipData[clip] = {
       words: JSON.parse(fs.readFileSync(wordsFile, 'utf8')),

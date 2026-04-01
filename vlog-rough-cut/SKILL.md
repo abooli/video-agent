@@ -13,13 +13,13 @@ To Agents: If this file gets updated, please update:
 
 # Vlog Rough Cut
 
-> Batch rough-cut orchestrator — reuses storyboard transcripts, runs AI stumble detection, serves a tabbed review UI per chapter.
+> Batch rough-cut orchestrator — reuses storyboard transcripts, runs AI sentence analysis, serves a tabbed review UI per chapter.
 
 ## Prerequisites
 
 - `vlog-storyboard` must have been run first (transcripts + audio already in `Claude output/storyboard/transcripts/`)
 - Node.js 18+, FFmpeg, Python 3.8+
-- Detection rules in `podcast-rough-cut/detection-rules/`
+- Detection rules in `vlog-rough-cut/detection-rules/` (separate from podcast-rough-cut)
 
 ## Output Directory Structure
 
@@ -36,10 +36,9 @@ Claude output/
     └── <batch-name>/                        ← user-named (e.g. "Chapter 1")
         ├── D1-08/
         │   ├── 1_subtitles_words.json       ← word-level timeline
-        │   ├── 2_readable.txt               ← idx|content|time for AI
-        │   ├── 3_sentences.txt              ← sentence-segmented
-        │   ├── 4_auto_selected.json         ← silence + stumble indices
-        │   └── 5_stumble_analysis.md        ← AI reasoning log
+        │   ├── 2_sentences.txt              ← sentence-segmented (primary AI input)
+        │   ├── 3_auto_selected.json         ← silence + best-take selection indices
+        │   └── 4_analysis.md                ← AI reasoning log
         ├── D3-03/
         │   └── ...
         ├── dashboard.html                   ← tabbed review UI for this batch
@@ -48,7 +47,22 @@ Claude output/
             └── D3-03_cut.mp4
 ```
 
-## Flow
+## Quick Start (Batch Runner)
+
+The fastest way to run everything — one command, walk away:
+
+```bash
+python vlog-rough-cut/scripts/batch_rough_cut.py "Chapter 1" D1-08 D3-03 D4-02
+```
+
+This handles all phases automatically:
+1. Converts transcripts + seeds silences (Node scripts, no AI)
+2. Runs AI analysis per clip (separate Claude Code CLI session each, fresh context)
+3. Generates the review dashboard
+
+See below for the manual step-by-step flow if you need more control.
+
+## Flow (Manual)
 
 ```
 1. Scan Claude output/storyboard/transcripts/ for available clips
@@ -57,7 +71,7 @@ Claude output/
        ↓
 3. Prompt user: "Name this batch?" → e.g. "Chapter 1"
        ↓
-4. Per clip: convert transcript → generate files 1_ through 5_
+4. Per clip (ONE AT A TIME): generate files → AI analysis → next clip
        ↓
 5. Generate dashboard.html (tabbed UI, one tab per clip)
        ↓
@@ -112,146 +126,107 @@ mkdir -p "$BATCH_DIR"
 
 ### Step 3: Per-Clip Processing
 
+⚠️ **CRITICAL: Process ONE clip fully (steps 3.1 → 3.4) before starting the next clip.** Do NOT generate files for all clips first and then analyze. This prevents context overflow. (Or use the batch runner which handles this automatically.)
+
 For each selected clip, run these sub-steps. No Deepgram calls — everything derives from the existing transcript.
 
-#### 3.1: Generate word-level subtitles (1_subtitles_words.json)
+#### 3.1: Generate word-level subtitles + sentence list
 
-Convert the storyboard transcript into the word-level format used by the analysis pipeline:
+Convert the storyboard transcript into analysis-ready files. This script handles both Deepgram and WhisperX transcript formats:
 
 ```bash
 CLIP="D1-08"
 CLIP_DIR="$BATCH_DIR/$CLIP"
-mkdir -p "$CLIP_DIR"
 
-node -e "
-const transcript = require('$TRANSCRIPTS_DIR/${CLIP}_transcript.json');
-
-// Deepgram transcript → subtitles_words format
-// Extract words array, insert gap entries between words
-const words = transcript.results.channels[0].alternatives[0].words;
-const output = [];
-
-words.forEach((w, i) => {
-  // Insert gap if there's space between this word and the previous
-  if (i > 0) {
-    const prevEnd = words[i-1].end;
-    if (w.start - prevEnd > 0.01) {
-      output.push({ text: '', start: prevEnd, end: w.start, isGap: true });
-    }
-  }
-  output.push({ text: w.punctuated_word || w.word, start: w.start, end: w.end, isGap: false });
-});
-
-require('fs').writeFileSync('$CLIP_DIR/1_subtitles_words.json', JSON.stringify(output, null, 2));
-console.log('Words:', output.filter(w => !w.isGap).length, '| Gaps:', output.filter(w => w.isGap).length);
-"
+node vlog-rough-cut/scripts/convert_transcript.js \
+  "$TRANSCRIPTS_DIR/${CLIP}_transcript.json" \
+  "$CLIP_DIR"
+# Output: 1_subtitles_words.json + 2_sentences.txt
 ```
 
-#### 3.2: Generate readable format (2_readable.txt)
+#### 3.2: Seed silence indices
+
+Pre-populate `3_auto_selected.json` with gaps ≥ 1s before AI analysis:
 
 ```bash
-node -e "
-const data = require('$CLIP_DIR/1_subtitles_words.json');
-let output = [];
-data.forEach((w, i) => {
-  if (w.isGap) {
-    const dur = (w.end - w.start).toFixed(2);
-    if (dur >= 0.5) output.push(i + '|[silence ' + dur + 's]|' + w.start.toFixed(2) + '-' + w.end.toFixed(2));
-  } else {
-    output.push(i + '|' + w.text + '|' + w.start.toFixed(2) + '-' + w.end.toFixed(2));
-  }
-});
-require('fs').writeFileSync('$CLIP_DIR/2_readable.txt', output.join('\n'));
-"
+node vlog-rough-cut/scripts/seed_silences.js "$CLIP_DIR"
+# Output: 3_auto_selected.json (silence indices only)
 ```
 
-#### 3.3: Generate sentence list (3_sentences.txt)
+#### 3.3: AI sentence analysis — pick best takes (3_auto_selected.json)
 
-Split by silence into sentences for comparison:
-
-```bash
-node -e "
-const data = require('$CLIP_DIR/1_subtitles_words.json');
-let sentences = [];
-let curr = { text: '', startIdx: -1, endIdx: -1 };
-
-data.forEach((w, i) => {
-  const isLongGap = w.isGap && (w.end - w.start) >= 0.5;
-  if (isLongGap) {
-    if (curr.text.length > 0) sentences.push({...curr});
-    curr = { text: '', startIdx: -1, endIdx: -1 };
-  } else if (!w.isGap) {
-    if (curr.startIdx === -1) curr.startIdx = i;
-    curr.text += w.text + ' ';
-    curr.endIdx = i;
-  }
-});
-if (curr.text.length > 0) sentences.push(curr);
-
-const output = sentences.map((s, i) =>
-  i + '|' + s.startIdx + '-' + s.endIdx + '|' + s.text.trim()
-).join('\n');
-require('fs').writeFileSync('$CLIP_DIR/3_sentences.txt', output);
-console.log('Sentences:', sentences.length);
-"
-```
-
-#### 3.4: Auto-mark silences + AI stumble analysis (4_auto_selected.json)
-
-First, seed with silence indices:
-
-```bash
-node -e "
-const words = require('$CLIP_DIR/1_subtitles_words.json');
-const selected = [];
-words.forEach((w, i) => {
-  if (w.isGap && (w.end - w.start) >= 0.5) selected.push(i);
-});
-require('fs').writeFileSync('$CLIP_DIR/4_auto_selected.json', JSON.stringify(selected, null, 2));
-console.log('Silences ≥0.5s:', selected.length);
-"
-```
-
-Then run AI stumble analysis — read detection rules from `podcast-rough-cut/detection-rules/` and analyze in chunks:
+Run AI sentence-level analysis using `vlog-rough-cut/detection-rules/`:
 
 ```
-1. Read 2_readable.txt offset=N limit=300
-2. Cross-reference with 3_sentences.txt
-3. Append stumble indices to 4_auto_selected.json
-4. Log reasoning to 5_stumble_analysis.md
-5. N += 300, repeat
+1. Read detection rules ONCE (4 files: Rule 0, 1, 2, 3)
+2. Read 2_sentences.txt in full (clips are ≤10 min, fits in one pass)
+3. Produce topic outline (Rule 0) → write to 4_analysis.md
+4. Map every sentence to a topic, aside, or noise (Rule 1) → append to 4_analysis.md
+5. Per topic: pick best take — simple, composite, or sequential (Rule 2)
+   a. Mark non-selected sentences' word ranges for deletion in 3_auto_selected.json
+   b. Rescue usable clauses from otherwise-deleted sentences
+   c. Append topic decisions to 4_analysis.md
+6. Delete filler words (um/uh/uhh) and apply silence thresholds (Rule 3)
+7. Run coherence check on kept sentences in order (Rule 3)
+8. Orphan cleanup (Rule 3) → append final summary to 4_analysis.md
 ```
 
-🚨 **Critical warning: line number ≠ idx** (same as podcast-rough-cut)
+The unit of work is a SENTENCE, not a word. The agent reads `2_sentences.txt` as the primary input. `1_subtitles_words.json` is only referenced to look up word indices when writing to `3_auto_selected.json`.
 
-```
-2_readable.txt format: idx|content|time
-                       ↑ use THIS value, not the line number
-```
+⚠️ **Context budget rules:**
+- Read detection rules ONCE. Do NOT re-read between steps.
+- Vlog clips are ≤10 min (~1500 words), so the full sentence list fits in context. No chunking needed.
+- Keep the analysis log terse: topic ID, sentence IDs, which was kept, one-line reason.
 
-#### 3.5: Stumble analysis log (5_stumble_analysis.md)
+#### 3.4: Analysis log (4_analysis.md)
 
-Written during step 3.4. Format:
+Written during step 3.3. Format:
 
 ```markdown
-# Stumble Analysis: D1-08
+# Sentence Analysis: D1-08
 
-## Chunk 1 (idx 0–300)
+## Topic Outline
 
-| idx | Time | Type | Content | Action |
-|-----|------|------|---------|--------|
-| 65-75 | 15.80-17.66 | repeated sentence | "So I was trying to set up" | delete |
-
-## Chunk 2 (idx 301–600)
+1. Greeting — happy Friday, disclaimer that it's her Friday not yours
+2. Lunch break — chicken rice from two days ago, still good
+3. [aside] Fork instead of spoon
 ...
+
+## Sentence Mapping
+
+| Sentence | Text (truncated) | Mapping |
+|----------|-------------------|---------|
+| S0 | "Hello, guys." | Topic 1 |
+| S1 | "It's happy Friday." | Topic 1 |
+| ... | ... | ... |
+
+## Best Take Selection
+
+### Topic 1: Greeting (S0–S7)
+- S0: "Hello, guys." — **KEEP** (greeting)
+- S1: "It's happy Friday." — **KEEP** (best complete take)
+- S2–S4: retakes → delete
+- S5: **KEEP** — Friday disclaimer
+- S6: **KEEP** — "So I don't know" (transition)
+- S7: **KEEP** — punchline
+
+### Topic 2: Lunch break (S8–S14)
+- S8: incomplete → delete
+- S9: **KEEP** — complete take
+...
+
+## Final Cut Summary
+
+- Sentences kept: 28 / 55
+- Topics fully covered: 11/11
 ```
 
-**Repeat steps 3.1–3.5 for each clip in the batch.**
+**Complete steps 3.1–3.4 for this clip, then move to the next clip.**
 
 
 ### Step 4: Generate Dashboard
 
-Generate a single `dashboard.html` for the batch. This is a tabbed single-page app — one tab per clip.
+After ALL clips are processed, generate a single `dashboard.html` for the batch.
 
 ```bash
 SKILL_DIR="<path-to-repo>/vlog-rough-cut"
@@ -264,58 +239,37 @@ node "$SKILL_DIR/scripts/generate_dashboard.js" \
 # Output: $BATCH_DIR/dashboard.html
 ```
 
-The dashboard must:
-- Show a sidebar with one tab per clip in the batch
-- Each tab loads that clip's `1_subtitles_words.json` and `4_auto_selected.json`
-- Audio playback from `storyboard/transcripts/<clip>_audio.mp3` (relative path)
-- Checkboxes for each marked segment (pre-checked = AI-selected for deletion)
-- Play button per segment to preview before confirming
-- "Execute Cut" button per clip
-- "Cut All" button to process every clip in the batch
+The dashboard reads each clip's `1_subtitles_words.json` and `3_auto_selected.json`.
 
 ### Step 5: Start Review Server + Open Browser
 
 ```bash
-# Start the review server (4th arg = vlogs folder for FFmpeg source videos)
 node "$SKILL_DIR/scripts/review_server.js" 8899 "$BATCH_DIR" "$STORYBOARD_TRANSCRIPTS" "$VLOGS_DIR"
-
-# Auto-open in default browser
 open http://localhost:8899
 ```
 
 `VLOGS_DIR` is the path to the sorted Vlogs folder (e.g. `~/Videos/012 CookingVlog/Media/Vlogs`). The server needs this to find source video files for FFmpeg cutting. If omitted, the server saves the selection JSON so you can run FFmpeg manually.
 
-The review server:
-- Serves `dashboard.html` at the root (`GET /`)
-- Serves clip data files from each clip subfolder (`GET /data/:clip/:file`)
-- Serves audio files from `storyboard/transcripts/` (`GET /audio/:filename`)
-- Exposes `POST /cut/:clip` endpoint for per-clip cutting
-- Exposes `POST /cut-all` endpoint for batch cutting
-
 ### Step 6: Execute Cut
 
-When the user clicks "Execute Cut" (per clip or all), the server calls FFmpeg to remove the selected segments:
+When the user clicks "Execute Cut", the server calls FFmpeg to remove the selected segments:
 
 ```bash
 mkdir -p "$BATCH_DIR/cut_output"
 
-# Per clip — the server builds this command from the confirmed selection
-# Segments NOT in auto_selected.json are kept, selected segments are cut
 ffmpeg -i "$VLOGS_DIR/$DAY/$CLIP.mp4" \
   -vf "select='...filter expression...', setpts=N/FRAME_RATE/TB" \
   -af "aselect='...filter expression...', asetpts=N/SR/TB" \
   -y "$BATCH_DIR/cut_output/${CLIP}_cut.mp4"
 ```
 
-The review server constructs the FFmpeg filter from the user's final selection (after they've reviewed and toggled checkboxes in the dashboard).
-
 ---
 
 ## Detection Rules
 
-This skill reuses the detection rules from `podcast-rough-cut/detection-rules/`. The agent reads all rule files during step 3.4 before running stumble analysis.
+This skill uses its own detection rules in `vlog-rough-cut/detection-rules/`. These are summary-driven and additive (understand the content first, then pick best audio for each point), unlike `podcast-rough-cut/detection-rules/` which are word-level and subtractive (mark problems for deletion).
 
-See `podcast-rough-cut/detection-rules/README.md` for the full rule index and priority order.
+See `vlog-rough-cut/detection-rules/README.md` for the rule index and analysis flow.
 
 ---
 
@@ -330,10 +284,10 @@ See `podcast-rough-cut/detection-rules/README.md` for the full rule index and pr
 ]
 ```
 
-### 4_auto_selected.json
+### 3_auto_selected.json
 
 ```json
-[72, 85, 120]  // indices into subtitles_words — silences + AI-detected stumbles
+[72, 85, 120]  // indices into subtitles_words — silences + AI-selected deletions
 ```
 
 ### Storyboard transcript (input, read-only)
@@ -347,8 +301,8 @@ Deepgram nova-2 JSON format — `results.channels[0].alternatives[0].words[]` co
 | Skill | Role |
 |-------|------|
 | `vlog-storyboard` | Upstream — produces transcripts + audio that this skill consumes |
-| `podcast-rough-cut` | Sibling — single-video rough cut for sit-down recordings. Shares detection rules. |
-| `vlog-rough-cut` | This skill — batch orchestrator for vlog chapters |
+| `podcast-rough-cut` | Sibling — single-video rough cut for sit-down recordings. Uses its own word-level detection rules. |
+| `vlog-rough-cut` | This skill — batch orchestrator for vlog chapters. Uses sentence-level additive rules (pick best take). |
 
 ---
 

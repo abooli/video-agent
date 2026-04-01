@@ -4,28 +4,35 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rough Cut Review — __BATCH_NAME__</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/wavesurfer.js@7"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #1a1a1a; color: #e0e0e0; display: flex; height: 100vh;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #faf9f7; color: #2c2c2c; display: flex; height: 100vh;
     }
     .sidebar {
-      width: 220px; background: #141414; border-right: 1px solid #333;
+      width: 220px; background: #f0eeea; border-right: 1px solid #e0ddd8;
       padding: 20px 16px; flex-shrink: 0; display: flex; flex-direction: column;
     }
-    .sidebar h1 { font-size: 13px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+    .sidebar h1 {
+      font-family: 'Newsreader', Georgia, serif; font-size: 16px; font-weight: 600;
+      color: #1a1a1a; margin-bottom: 16px;
+    }
     .tab-btn {
       display: flex; align-items: center; justify-content: space-between;
       width: 100%; padding: 10px 12px; margin-bottom: 4px;
-      background: transparent; border: 1px solid transparent; border-radius: 6px;
-      color: #ccc; font-size: 14px; cursor: pointer; text-align: left;
+      background: transparent; border: 1px solid transparent; border-radius: 8px;
+      color: #555; font-size: 14px; cursor: pointer; text-align: left;
+      font-family: 'Inter', sans-serif; font-weight: 500;
     }
-    .tab-btn:hover { background: #1a1a2e; }
-    .tab-btn.active { background: #0f3460; border-color: #4a9eff; color: #fff; }
-    .tab-btn .badge { font-size: 11px; background: #ff9800; color: #000; padding: 2px 6px; border-radius: 10px; font-weight: 600; }
-    .tab-btn.active .badge { background: #4a9eff; color: #fff; }
+    .tab-btn:hover { background: #e8e5e0; }
+    .tab-btn.active { background: #fff; border-color: #d0cdc8; color: #1a1a1a; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+    .tab-btn .badge { font-size: 11px; background: #f59e0b; color: #fff; padding: 2px 6px; border-radius: 10px; font-weight: 600; }
+    .tab-btn.active .badge { background: #4a9eff; }
     .sidebar-spacer { flex: 1; }
     .save-all-btn {
       width: 100%; padding: 10px; background: #2196F3; color: #fff;
@@ -36,21 +43,21 @@
       width: 100%; padding: 12px; background: #9C27B0; color: #fff;
       border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; margin-top: 8px;
     }
-    .cut-all-btn:hover { background: #7B1FA2; }
+    .cut-all-btn:hover { background: #6d28d9; }
     .main { flex: 1; overflow-y: auto; padding: 24px; max-width: 900px; }
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
-    .controls { position: sticky; top: 0; background: #1a1a1a; padding: 15px 0; border-bottom: 1px solid #333; z-index: 100; }
+    .controls { position: sticky; top: 0; background: #faf9f7; padding: 15px 0; border-bottom: 1px solid #e0ddd8; z-index: 100; }
     .buttons { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 15px; }
-    button { padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
-    button:hover { background: #45a049; }
-    button.danger { background: #f44336; }
-    button.danger:hover { background: #da190b; }
-    select { padding: 8px 12px; background: #333; color: white; border: none; border-radius: 4px; font-size: 14px; }
-    .time-display { font-family: monospace; font-size: 16px; color: #888; }
-    .waveform-container { background: #252525; border-radius: 4px; margin: 10px 0; height: 80px; }
-    .help { font-size: 13px; color: #999; margin-top: 10px; background: #252525; padding: 12px; border-radius: 6px; line-height: 1.8; }
-    .help b { color: #fff; }
+    button { padding: 8px 16px; background: #3d8c40; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-family: 'Inter', sans-serif; font-weight: 500; }
+    button:hover { background: #357a38; }
+    button.danger { background: #d32f2f; }
+    button.danger:hover { background: #b71c1c; }
+    select { padding: 8px 12px; background: #fff; color: #2c2c2c; border: 1px solid #d0cdc8; border-radius: 6px; font-size: 14px; font-family: 'Inter', sans-serif; }
+    .time-display { font-family: 'SF Mono', 'Consolas', monospace; font-size: 15px; color: #888; }
+    .waveform-container { background: #f0eeea; border-radius: 6px; margin: 10px 0; height: 80px; }
+    .help { font-size: 13px; color: #888; margin-top: 10px; background: #f0eeea; padding: 12px; border-radius: 8px; line-height: 1.8; }
+    .help b { color: #2c2c2c; }
     .content { line-height: 2.5; padding: 20px 0; }
     .word { display: inline-block; padding: 4px 2px; margin: 2px; border-radius: 3px; cursor: pointer; transition: all 0.15s; }
     .word:hover { background: #333; }
@@ -71,11 +78,11 @@
     .stats-value.removed { color: #ff9800; }
     .loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
     .loading-overlay.show { display: flex; }
-    .loading-spinner { width: 60px; height: 60px; border: 4px solid #333; border-top-color: #9C27B0; border-radius: 50%; animation: spin 1s linear infinite; }
+    .loading-spinner { width: 60px; height: 60px; border: 4px solid #e0ddd8; border-top-color: #7c3aed; border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .loading-text { margin-top: 20px; font-size: 18px; color: #fff; }
-    .loading-progress-container { margin-top: 20px; width: 300px; height: 8px; background: #333; border-radius: 4px; overflow: hidden; }
-    .loading-progress-bar { height: 100%; background: linear-gradient(90deg, #9C27B0, #E91E63); width: 0%; transition: width 0.3s ease; }
+    .loading-text { margin-top: 20px; font-size: 18px; color: #2c2c2c; font-family: 'Newsreader', serif; }
+    .loading-progress-container { margin-top: 20px; width: 300px; height: 8px; background: #e0ddd8; border-radius: 4px; overflow: hidden; }
+    .loading-progress-bar { height: 100%; background: linear-gradient(90deg, #7c3aed, #ec4899); width: 0%; transition: width 0.3s ease; }
     .loading-time { margin-top: 15px; font-size: 14px; color: #888; }
   </style>
 </head>
@@ -98,7 +105,6 @@
   </div>
   <script>
     /*__CLIP_DATA__*/
-
     var clipState = {};
     var activeClip = CLIPS[0];
 
@@ -135,7 +141,7 @@
       var state = clipState[clip];
       var ws = WaveSurfer.create({
         container: '#waveform-' + clip,
-        waveColor: '#4a9eff', progressColor: '#1976D2', cursorColor: '#fff',
+        waveColor: '#b8b3aa', progressColor: '#4a9eff', cursorColor: '#2c2c2c',
         height: 80, barWidth: 2, barGap: 1, barRadius: 2,
         url: '/audio/' + clip + '_audio.m4a'
       });
@@ -147,10 +153,7 @@
             var w = state.words[sorted[si]];
             if (t >= w.start && t < w.end) {
               var endTime = w.end, j = si + 1;
-              while (j < sorted.length) {
-                var nw = state.words[sorted[j]];
-                if (nw.start - endTime < 0.1) { endTime = nw.end; j++; } else break;
-              }
+              while (j < sorted.length) { var nw = state.words[sorted[j]]; if (nw.start - endTime < 0.1) { endTime = nw.end; j++; } else break; }
               ws.setTime(endTime); return;
             }
           }
@@ -158,9 +161,8 @@
         document.getElementById('time-' + clip).textContent = formatTime(t) + ' / ' + formatTime(ws.getDuration());
         state.elements.forEach(function(el, i) {
           var w = state.words[i];
-          if (t >= w.start && t < w.end) {
-            if (!el.classList.contains('current')) { el.classList.add('current'); el.scrollIntoView({behavior:'smooth',block:'center'}); }
-          } else { el.classList.remove('current'); }
+          if (t >= w.start && t < w.end) { if (!el.classList.contains('current')) { el.classList.add('current'); el.scrollIntoView({behavior:'smooth',block:'center'}); } }
+          else { el.classList.remove('current'); }
         });
       });
     }
@@ -177,15 +179,9 @@
         initWaveSurfer(activeClip);
       });
     });
-
-    function formatTime(sec) {
-      var m = Math.floor(sec/60), s = Math.floor(sec%60);
-      return m.toString().padStart(2,'0') + ':' + s.toString().padStart(2,'0');
-    }
-
+    function formatTime(sec) { var m = Math.floor(sec/60), s = Math.floor(sec%60); return m.toString().padStart(2,'0') + ':' + s.toString().padStart(2,'0'); }
     function renderClip(clip) {
-      var state = clipState[clip];
-      var container = document.getElementById('content-' + clip);
+      var state = clipState[clip], container = document.getElementById('content-' + clip);
       container.innerHTML = ''; state.elements = [];
       state.words.forEach(function(word, i) {
         var div = document.createElement('div');
@@ -196,22 +192,15 @@
         div.dataset.index = i; div.dataset.clip = clip;
         div.onclick = function() { if (!state._selecting) state.wavesurfer.setTime(word.start); };
         div.ondblclick = function() { toggleWord(clip, i); };
-        div.onmousedown = function(e) {
-          if (e.shiftKey) { state._selecting = true; state._selectStart = i; state._selectMode = state.selected.has(i) ? 'remove' : 'add'; e.preventDefault(); }
-        };
+        div.onmousedown = function(e) { if (e.shiftKey) { state._selecting = true; state._selectStart = i; state._selectMode = state.selected.has(i) ? 'remove' : 'add'; e.preventDefault(); } };
         container.appendChild(div); state.elements.push(div);
       });
       updateStats(clip);
     }
-
     function toggleWord(clip, i) {
       var state = clipState[clip];
-      if (state.selected.has(i)) {
-        state.selected.delete(i); state.elements[i].classList.remove('selected');
-        if (state.autoSelected.has(i)) state.elements[i].classList.add('ai-selected');
-      } else {
-        state.selected.add(i); state.elements[i].classList.add('selected'); state.elements[i].classList.remove('ai-selected');
-      }
+      if (state.selected.has(i)) { state.selected.delete(i); state.elements[i].classList.remove('selected'); if (state.autoSelected.has(i)) state.elements[i].classList.add('ai-selected'); }
+      else { state.selected.add(i); state.elements[i].classList.add('selected'); state.elements[i].classList.remove('ai-selected'); }
       updateStats(clip); updateBadge(clip);
     }
 
@@ -238,19 +227,12 @@
 
     // Shift+drag multi-select
     document.addEventListener('mousemove', function(e) {
-      var target = e.target.closest('[data-index]');
-      if (!target) return;
-      var clip = target.dataset.clip, state = clipState[clip];
-      if (!state._selecting) return;
-      var i = parseInt(target.dataset.index);
-      var min = Math.min(state._selectStart, i), max = Math.max(state._selectStart, i);
+      var target = e.target.closest('[data-index]'); if (!target) return;
+      var clip = target.dataset.clip, state = clipState[clip]; if (!state._selecting) return;
+      var i = parseInt(target.dataset.index), min = Math.min(state._selectStart, i), max = Math.max(state._selectStart, i);
       for (var j = min; j <= max; j++) {
-        if (state._selectMode === 'add') {
-          state.selected.add(j); state.elements[j].classList.add('selected'); state.elements[j].classList.remove('ai-selected');
-        } else {
-          state.selected.delete(j); state.elements[j].classList.remove('selected');
-          if (state.autoSelected.has(j)) state.elements[j].classList.add('ai-selected');
-        }
+        if (state._selectMode === 'add') { state.selected.add(j); state.elements[j].classList.add('selected'); state.elements[j].classList.remove('ai-selected'); }
+        else { state.selected.delete(j); state.elements[j].classList.remove('selected'); if (state.autoSelected.has(j)) state.elements[j].classList.add('ai-selected'); }
       }
       updateStats(clip); updateBadge(clip);
     });
@@ -264,11 +246,7 @@
       sel.onchange = function() { clipState[sel.dataset.clip].wavesurfer.setPlaybackRate(parseFloat(sel.value)); };
     });
     document.querySelectorAll('.clear-btn').forEach(function(btn) {
-      btn.onclick = function() {
-        var state = clipState[btn.dataset.clip]; state.selected.clear();
-        state.elements.forEach(function(el, i) { el.classList.remove('selected'); if (state.autoSelected.has(i)) el.classList.add('ai-selected'); });
-        updateStats(btn.dataset.clip); updateBadge(btn.dataset.clip);
-      };
+      btn.onclick = function() { var state = clipState[btn.dataset.clip]; state.selected.clear(); state.elements.forEach(function(el, i) { el.classList.remove('selected'); if (state.autoSelected.has(i)) el.classList.add('ai-selected'); }); updateStats(btn.dataset.clip); updateBadge(btn.dataset.clip); };
     });
     document.querySelectorAll('.copy-btn').forEach(function(btn) {
       btn.onclick = function() {
@@ -282,37 +260,23 @@
         navigator.clipboard.writeText(text).then(function(){alert('Copied speech: ' + words.length + ' word(s)');});
       };
     });
-
-    // Cut single clip
     document.querySelectorAll('.cut-btn').forEach(function(btn) {
       btn.onclick = function() {
-        var clip = btn.dataset.clip, state = clipState[clip];
-        var dur = state.wavesurfer.getDuration(), estSec = Math.max(5, Math.ceil(dur/4));
-        if (!confirm('Cut ' + clip + '?\n\nEstimated: ~' + estSec + 's')) return;
-        var selected = Array.from(state.selected).sort(function(a,b){return a-b;});
-        showLoading(estSec);
-        fetch('/cut/' + clip, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({selected:selected}) })
-        .then(function(r){return r.json();})
-        .then(function(data) { hideLoading(); alert(data.ok ? '✅ '+clip+' cut → '+data.output : '❌ '+data.error); })
-        .catch(function(err) { hideLoading(); alert('❌ '+err.message); });
+        var clip = btn.dataset.clip, state = clipState[clip], dur = state.wavesurfer.getDuration(), est = Math.max(5, Math.ceil(dur/4));
+        if (!confirm('Cut ' + clip + '?\nEstimated: ~' + est + 's')) return;
+        var sel = Array.from(state.selected).sort(function(a,b){return a-b;}); showLoading(est);
+        fetch('/cut/'+clip,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selected:sel})})
+        .then(function(r){return r.json();}).then(function(d){hideLoading();alert(d.ok?'✅ '+clip+' → '+d.output:'❌ '+d.error);})
+        .catch(function(err){hideLoading();alert('❌ '+err.message);});
       };
     });
-
-    // Cut all
     document.getElementById('cutAllBtn').onclick = function() {
-      var summary = CLIPS.map(function(c){return c+': '+clipState[c].selected.size+' segments';}).join('\n');
-      if (!confirm('Cut all clips?\n\n'+summary)) return;
-      var payload = {};
-      CLIPS.forEach(function(c) { payload[c] = Array.from(clipState[c].selected).sort(function(a,b){return a-b;}); });
-      showLoading(30);
-      fetch('/cut-all', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) })
-      .then(function(r){return r.json();})
-      .then(function(data) {
-        hideLoading();
-        if (data.ok) alert('✅ All clips cut!');
-        else { var msgs = Object.entries(data.results).map(function(e){return e[0]+': '+(e[1].ok?'✅':'❌ '+e[1].error);}); alert(msgs.join('\n')); }
-      })
-      .catch(function(err) { hideLoading(); alert('❌ '+err.message); });
+      var summary = CLIPS.map(function(c){return c+': '+clipState[c].selected.size;}).join('\n');
+      if (!confirm('Cut all?\n\n'+summary)) return;
+      var payload = {}; CLIPS.forEach(function(c){payload[c]=Array.from(clipState[c].selected).sort(function(a,b){return a-b;});}); showLoading(30);
+      fetch('/cut-all',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+      .then(function(r){return r.json();}).then(function(d){hideLoading();if(d.ok)alert('✅ All cut!');else{var m=Object.entries(d.results).map(function(e){return e[0]+': '+(e[1].ok?'✅':'❌ '+e[1].error);});alert(m.join('\n'));}})
+      .catch(function(err){hideLoading();alert('❌ '+err.message);});
     };
 
     // Loading overlay helpers

@@ -198,6 +198,13 @@ console.log('Silences ≥0.5s:', selected.length);
 5. N += 300, go back to step 1
 ```
 
+⚠️ **Context budget rules (prevent context overflow on long clips):**
+- Read detection rules ONCE at the start. Do NOT re-read rule files between chunks.
+- Each chunk's stumble_analysis output should be APPENDED to the .md file via tool, then forgotten — do NOT accumulate past chunk analyses in working memory.
+- Keep the analysis table rows terse: idx range, type keyword, and action only. Skip quoting the full spoken content unless it's needed to explain an ambiguous call.
+- If a clip has >2000 word entries, increase chunk size to 500 to reduce the number of iterations.
+- Do NOT re-read sentences.txt or readable.txt sections you've already processed. Move forward only.
+
 🚨 **Critical warning: line number ≠ idx**
 
 ```

@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 /**
- * Convert a WhisperX-format transcript JSON into the 3 analysis-ready files:
+ * Convert a Deepgram transcript JSON into analysis-ready files:
  *   1_subtitles_words.json  — word-level timeline with gap entries
- *   2_readable.txt          — idx|content|time for AI reading
- *   3_sentences.txt         — sentence-segmented for comparison
+ *   2_sentences.txt         — sentence-segmented for AI analysis
  *
  * Usage:
  *   node convert_transcript.js <transcript.json> <output-dir>
@@ -30,24 +29,38 @@ function main() {
   fs.mkdirSync(outputDir, { recursive: true });
 
   const transcript = JSON.parse(fs.readFileSync(transcriptPath, 'utf-8'));
-  const segments = transcript.segments || [];
+
+  // --- Detect format and extract words ---
+  let rawWords;
+  if (transcript.results && transcript.results.channels) {
+    // Deepgram format
+    rawWords = transcript.results.channels[0].alternatives[0].words;
+  } else if (transcript.segments) {
+    // WhisperX fallback
+    rawWords = [];
+    for (const seg of transcript.segments) {
+      for (const w of (seg.words || [])) {
+        rawWords.push(w);
+      }
+    }
+  } else {
+    console.error('Unknown transcript format. Expected Deepgram or WhisperX.');
+    process.exit(1);
+  }
 
   // --- 1. Build subtitles_words (word-level with gaps) ---
   const subtitleWords = [];
 
-  for (const seg of segments) {
-    const words = seg.words || [];
-    for (let i = 0; i < words.length; i++) {
-      const w = words[i];
-      const prevEnd = subtitleWords.length > 0
-        ? subtitleWords[subtitleWords.length - 1].end
-        : (seg.start || 0);
+  for (let i = 0; i < rawWords.length; i++) {
+    const w = rawWords[i];
+    const prevEnd = i > 0 ? rawWords[i - 1].end : 0;
 
-      if (w.start - prevEnd > 0.01) {
-        subtitleWords.push({ text: '', start: prevEnd, end: w.start, isGap: true });
-      }
-      subtitleWords.push({ text: w.word, start: w.start, end: w.end, isGap: false });
+    if (w.start - prevEnd > 0.01) {
+      subtitleWords.push({ text: '', start: prevEnd, end: w.start, isGap: true });
     }
+    // Deepgram uses punctuated_word, WhisperX uses word
+    const text = w.punctuated_word || w.word;
+    subtitleWords.push({ text, start: w.start, end: w.end, isGap: false });
   }
 
   fs.writeFileSync(
@@ -59,23 +72,7 @@ function main() {
   const gapCount = subtitleWords.filter(w => w.isGap).length;
   console.log(`1_subtitles_words.json — ${wordCount} words, ${gapCount} gaps`);
 
-  // --- 2. Build readable.txt ---
-  const readableLines = [];
-  subtitleWords.forEach((w, i) => {
-    if (w.isGap) {
-      const dur = (w.end - w.start).toFixed(2);
-      if (parseFloat(dur) >= SILENCE_THRESHOLD) {
-        readableLines.push(`${i}|[silence ${dur}s]|${w.start.toFixed(2)}-${w.end.toFixed(2)}`);
-      }
-    } else {
-      readableLines.push(`${i}|${w.text}|${w.start.toFixed(2)}-${w.end.toFixed(2)}`);
-    }
-  });
-
-  fs.writeFileSync(path.join(outputDir, '2_readable.txt'), readableLines.join('\n'));
-  console.log(`2_readable.txt — ${readableLines.length} lines`);
-
-  // --- 3. Build sentences.txt ---
+  // --- 2. Build sentences.txt ---
   const sentences = [];
   let curr = { text: '', startIdx: -1, endIdx: -1 };
 
@@ -96,8 +93,8 @@ function main() {
     `${i}|${s.startIdx}-${s.endIdx}|${s.text.trim()}`
   );
 
-  fs.writeFileSync(path.join(outputDir, '3_sentences.txt'), sentenceLines.join('\n'));
-  console.log(`3_sentences.txt — ${sentences.length} sentences`);
+  fs.writeFileSync(path.join(outputDir, '2_sentences.txt'), sentenceLines.join('\n'));
+  console.log(`2_sentences.txt — ${sentences.length} sentences`);
 }
 
 main();

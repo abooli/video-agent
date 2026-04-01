@@ -91,6 +91,8 @@ ffmpeg -i "file:$FILE" -vn -acodec libmp3lame -y "${CLIP}_audio.mp3"
 python deepgram_transcribe.py "${CLIP}_audio.mp3" en
 ```
 
+⚠️ **Always extract to MP3** (`-acodec libmp3lame`), not M4A. M4A/AAC has seeking and duration reporting issues in Chrome's Web Audio API, which breaks wavesurfer.js playback in the rough-cut dashboard.
+
 Then merge all transcripts into one combined file, ordered by the user's clip list:
 
 ```
@@ -154,7 +156,7 @@ The script will:
 Claude output/storyboard/
 ├── per_video_context.md
 ├── transcripts/
-│   ├── D1-08_audio.mp3           ← extracted audio (reused by rough-cut)
+│   ├── D1-08_audio.mp3           ← extracted audio (MP3 only — M4A breaks Chrome playback)
 │   ├── D1-08_transcript.json
 │   ├── D3-03_audio.mp3
 │   ├── D3-03_transcript.json

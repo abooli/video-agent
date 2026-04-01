@@ -4,25 +4,28 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rough Cut Review</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/wavesurfer.js@7"></script>
   <style>
     * { box-sizing: border-box; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: 'Newsreader', Georgia, serif;
       max-width: 900px;
       margin: 0 auto;
       padding: 20px;
-      background: #1a1a1a;
-      color: #e0e0e0;
+      background: #faf9f7;
+      color: #2c2c2c;
     }
-    h1 { text-align: center; margin-bottom: 20px; }
+    h1 { text-align: center; margin-bottom: 20px; font-family: 'Newsreader', Georgia, serif; font-weight: 600; color: #1a1a1a; }
 
     .controls {
       position: sticky;
       top: 0;
-      background: #1a1a1a;
+      background: #faf9f7;
       padding: 15px 0;
-      border-bottom: 1px solid #333;
+      border-bottom: 1px solid #e0ddd8;
       z-index: 100;
     }
 
@@ -36,36 +39,39 @@
 
     button {
       padding: 8px 16px;
-      background: #4CAF50;
+      background: #3d8c40;
       color: white;
       border: none;
-      border-radius: 4px;
+      border-radius: 6px;
       cursor: pointer;
       font-size: 14px;
+      font-family: 'Newsreader', Georgia, serif;
+      font-weight: 600;
     }
-    button:hover { background: #45a049; }
-    button.danger { background: #f44336; }
-    button.danger:hover { background: #da190b; }
+    button:hover { background: #357a38; }
+    button.danger { background: #d32f2f; }
+    button.danger:hover { background: #b71c1c; }
 
     select {
       padding: 8px 12px;
-      background: #333;
-      color: white;
-      border: none;
-      border-radius: 4px;
+      background: #fff;
+      color: #2c2c2c;
+      border: 1px solid #d0cdc8;
+      border-radius: 6px;
       font-size: 14px;
       cursor: pointer;
+      font-family: 'Inter', sans-serif;
     }
 
     #time {
-      font-family: monospace;
-      font-size: 16px;
+      font-family: 'SF Mono', 'Consolas', monospace;
+      font-size: 15px;
       color: #888;
     }
 
     #waveform {
-      background: #252525;
-      border-radius: 4px;
+      background: #f0eeea;
+      border-radius: 6px;
       margin: 10px 0;
     }
 
@@ -78,56 +84,59 @@
       display: inline-block;
       padding: 4px 2px;
       margin: 2px;
-      border-radius: 3px;
+      border-radius: 4px;
       cursor: pointer;
       transition: all 0.15s;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
-    .word:hover { background: #333; }
-    .word.current { background: #2196F3; color: white; }
-    .word.selected { background: #f44336; color: white; text-decoration: line-through; }
-    .word.ai-selected { background: #ff9800; color: white; }
-    .word.ai-selected.selected { background: #f44336; }
+    .word:hover { background: #e8e5e0; }
+    .word.current { background: #4a9eff; color: white; }
+    .word.selected { background: #d32f2f; color: white; text-decoration: line-through; }
+    .word.ai-selected { background: #f59e0b; color: white; }
+    .word.ai-selected.selected { background: #d32f2f; }
 
     .gap {
       display: inline-block;
-      background: #333;
-      color: #888;
+      background: #e8e5e0;
+      color: #999;
       padding: 4px 8px;
       margin: 2px;
-      border-radius: 3px;
+      border-radius: 4px;
       font-size: 12px;
       cursor: pointer;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
-    .gap:hover { background: #444; }
-    .gap.selected { background: #f44336; color: white; }
-    .gap.ai-selected { background: #ff9800; color: white; }
-    .gap.ai-selected.selected { background: #f44336; }
+    .gap:hover { background: #ddd9d3; }
+    .gap.selected { background: #d32f2f; color: white; }
+    .gap.ai-selected { background: #f59e0b; color: white; }
+    .gap.ai-selected.selected { background: #d32f2f; }
 
     .stats {
       margin-top: 10px;
       padding: 10px;
-      background: #252525;
-      border-radius: 4px;
+      background: #f0eeea;
+      border-radius: 6px;
       font-size: 14px;
+      color: #555;
     }
 
     .help {
       font-size: 13px;
-      color: #999;
+      color: #888;
       margin-top: 10px;
-      background: #252525;
+      background: #f0eeea;
       padding: 12px;
-      border-radius: 6px;
+      border-radius: 8px;
       line-height: 1.8;
     }
-    .help b { color: #fff; }
+    .help b { color: #2c2c2c; }
 
     /* Loading overlay */
     .loading-overlay {
       display: none;
       position: fixed;
       top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.85);
+      background: rgba(255,255,255,0.92);
       z-index: 9999;
       justify-content: center;
       align-items: center;
@@ -136,24 +145,24 @@
     .loading-overlay.show { display: flex; }
     .loading-spinner {
       width: 60px; height: 60px;
-      border: 4px solid #333;
-      border-top-color: #9C27B0;
+      border: 4px solid #e0ddd8;
+      border-top-color: #7c3aed;
       border-radius: 50%;
       animation: spin 1s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .loading-text { margin-top: 20px; font-size: 18px; color: #fff; }
+    .loading-text { margin-top: 20px; font-size: 18px; color: #2c2c2c; font-family: 'Newsreader', serif; }
     .loading-progress-container {
       margin-top: 20px; width: 300px; height: 8px;
-      background: #333; border-radius: 4px; overflow: hidden;
+      background: #e0ddd8; border-radius: 4px; overflow: hidden;
     }
     .loading-progress-bar {
       height: 100%;
-      background: linear-gradient(90deg, #9C27B0, #E91E63);
+      background: linear-gradient(90deg, #7c3aed, #ec4899);
       width: 0%; transition: width 0.3s ease;
     }
     .loading-time { margin-top: 15px; font-size: 14px; color: #888; }
-    .loading-estimate { margin-top: 8px; font-size: 13px; color: #666; }
+    .loading-estimate { margin-top: 8px; font-size: 13px; color: #aaa; }
   </style>
 </head>
 <body>
@@ -181,16 +190,16 @@
         <option value="1.5">1.5x</option>
         <option value="2">2x</option>
       </select>
-      <button id="copyBtn">📋 Copy Delete List</button>
-      <button id="cutBtn" style="background:#9C27B0">🎬 Execute Cut</button>
-      <button class="danger" id="clearBtn">🗑️ Clear Selection</button>
+      <button id="copyBtn" style="background:#4a9eff">📋 Copy Speech</button>
+      <button class="danger" id="clearBtn">🗑️ Clear</button>
+      <button id="cutBtn" style="background:#7c3aed">🎬 Execute Cut</button>
       <span id="time">00:00 / 00:00</span>
     </div>
     <div id="waveform"></div>
     <div class="help">
       <div><b>🖱️ Mouse:</b> Click = jump to time | Double-click = select/deselect | Shift+drag = batch select/deselect</div>
       <div><b>⌨️ Keyboard:</b> Space = play/pause | ← → = skip 1s | Shift+←→ = skip 5s</div>
-      <div><b>🎨 Colors:</b> <span style="color:#ff9800">Orange</span> = AI pre-selected | <span style="color:#f44336">Red strikethrough</span> = confirmed delete | Playback auto-skips selected segments</div>
+      <div><b>🎨 Colors:</b> <span style="color:#f59e0b">Orange</span> = AI pre-selected | <span style="color:#d32f2f">Red strikethrough</span> = confirmed delete | Playback auto-skips selected segments</div>
     </div>
   </div>
 
@@ -253,26 +262,23 @@
     const selected = new Set(autoSelected);
 
     // ── Waveform (demo mode — no actual audio) ──
-    let wavesurferReady = false;
     let mockTime = 0;
     let mockPlaying = false;
     let mockDuration = 14.62;
     let mockInterval = null;
 
-    // Mock wavesurfer for demo (no audio file)
     const wavesurfer = {
       getCurrentTime: () => mockTime,
       getDuration: () => mockDuration,
       isPlaying: () => mockPlaying,
       setTime: (t) => { mockTime = Math.max(0, Math.min(t, mockDuration)); updateTimeDisplay(); highlightCurrent(); },
-      setPlaybackRate: (r) => { /* noop in demo */ },
+      setPlaybackRate: (r) => {},
       playPause: () => {
         mockPlaying = !mockPlaying;
         if (mockPlaying) {
           mockInterval = setInterval(() => {
             mockTime += 0.05;
             if (mockTime >= mockDuration) { mockPlaying = false; clearInterval(mockInterval); }
-            // Skip selected segments during playback
             const sortedSel = Array.from(selected).sort((a, b) => a - b);
             for (const i of sortedSel) {
               const w = words[i];
@@ -328,25 +334,20 @@
       });
     }
 
-    // ── Render content ──
     function render() {
       content.innerHTML = '';
       elements = [];
-
       words.forEach((word, i) => {
         const div = document.createElement('div');
         div.className = word.isGap ? 'gap' : 'word';
-
         if (selected.has(i)) div.classList.add('selected');
         else if (autoSelected.has(i)) div.classList.add('ai-selected');
-
         if (word.isGap) {
           const duration = (word.end - word.start).toFixed(1);
           div.textContent = `⏸ ${duration}s`;
         } else {
           div.textContent = word.text;
         }
-
         div.dataset.index = i;
         div.onclick = () => { if (!isSelecting) wavesurfer.setTime(word.start); };
         div.ondblclick = () => toggle(i);
@@ -358,15 +359,12 @@
             e.preventDefault();
           }
         };
-
         content.appendChild(div);
         elements.push(div);
       });
-
       updateStats();
     }
 
-    // Shift+drag multi-select
     content.addEventListener('mousemove', e => {
       if (!isSelecting) return;
       const target = e.target.closest('[data-index]');
@@ -409,7 +407,6 @@
       statsDiv.textContent = `Selected: ${count} segments, total duration: ${totalDuration.toFixed(2)}s`;
     }
 
-    // ── Button handlers ──
     document.getElementById('playPauseBtn').onclick = () => wavesurfer.playPause();
     document.getElementById('speed').onchange = function() { wavesurfer.setPlaybackRate(parseFloat(this.value)); };
     document.getElementById('clearBtn').onclick = () => {
@@ -421,28 +418,20 @@
       updateStats();
     };
     document.getElementById('copyBtn').onclick = () => {
-      const segments = [];
-      Array.from(selected).sort((a, b) => a - b).forEach(i => {
-        segments.push({ start: words[i].start, end: words[i].end });
-      });
-      const merged = [];
-      for (const seg of segments) {
-        if (merged.length === 0) { merged.push({ ...seg }); }
-        else {
-          const last = merged[merged.length - 1];
-          if (Math.abs(seg.start - last.end) < 0.05) { last.end = seg.end; }
-          else { merged.push({ ...seg }); }
-        }
-      }
-      navigator.clipboard.writeText(JSON.stringify(merged, null, 2)).then(() => {
-        alert('Copied ' + merged.length + ' delete segments to clipboard');
+      const speech = words
+        .filter((w, i) => !selected.has(i) && !w.isGap)
+        .map(w => w.text)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      navigator.clipboard.writeText(speech).then(() => {
+        alert('Copied clean transcript to clipboard (' + speech.split(' ').length + ' words)');
       });
     };
     document.getElementById('cutBtn').onclick = () => {
       alert('🎬 Execute Cut would send selection to review_server.js\n\nThis is a static demo — no server running.');
     };
 
-    // Keyboard shortcuts
     document.addEventListener('keydown', e => {
       if (e.code === 'Space') { e.preventDefault(); wavesurfer.playPause(); }
       else if (e.code === 'ArrowLeft') { wavesurfer.setTime(mockTime - (e.shiftKey ? 5 : 1)); }
