@@ -60,7 +60,7 @@ function main() {
             <option value="1.5">1.5x</option><option value="2">2x</option>
           </select>
           <button class="copy-btn" data-clip="${clip}">📋 Copy Speech</button>
-          <button style="background:#9C27B0" class="cut-btn" data-clip="${clip}">🎬 Cut</button>
+          <button style="background:#7c3aed" class="cut-btn" data-clip="${clip}">🎬 Cut</button>
           <button class="danger clear-btn" data-clip="${clip}">🗑️ Clear</button>
           <span class="time-display" id="time-${clip}">00:00 / 00:00</span>
           <span id="saveStatus-${clip}" style="font-size:13px;color:#888"></span>
@@ -69,7 +69,7 @@ function main() {
         <div class="help">
           <div><b>🖱️</b> Click=jump | Dbl-click=toggle | Shift+drag=batch</div>
           <div><b>⌨️</b> Space=play | ←→=1s | Shift+←→=5s</div>
-          <div><b>🎨</b> <span style="color:#ff9800">Orange</span>=AI | <span style="color:#f44336">Red</span>=delete</div>
+          <div><b>🎨</b> <span style="color:#f59e0b">Orange</span>=AI | <span style="color:#d32f2f">Red</span>=delete</div>
         </div>
       </div>
       <div class="content" id="content-${clip}"></div>

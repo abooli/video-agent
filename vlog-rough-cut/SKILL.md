@@ -21,6 +21,30 @@ To Agents: If this file gets updated, please update:
 - Node.js 18+, FFmpeg, Python 3.8+
 - Detection rules in `vlog-rough-cut/detection-rules/` (separate from podcast-rough-cut)
 
+## Paths
+
+This skill references two locations:
+
+1. **Skills repo** (`SKILL_DIR`) — this repo, where the scripts and detection rules live. The agent knows this path because it loaded this SKILL.md from it.
+2. **Project folder** — the user's video project folder (e.g. `~/Videos/012 CookingVlog/`). This is where `Claude output/` lives, created by `vlog-storyboard`.
+
+At the start of Step 1, ask the user for their project folder path if not already known:
+
+```
+Where is your video project folder? (the one with "Claude output/storyboard/transcripts/" inside)
+> ~/Videos/012 CookingVlog
+```
+
+Then set:
+```bash
+PROJECT_DIR="~/Videos/012 CookingVlog"
+TRANSCRIPTS_DIR="$PROJECT_DIR/Claude output/storyboard/transcripts"
+```
+
+All `Claude output/` paths in this doc are relative to `PROJECT_DIR`. The agent runs all commands from the project folder.
+
+The user does NOT need to run any scripts manually — the agent executes everything.
+
 ## Output Directory Structure
 
 ```
@@ -229,7 +253,7 @@ Written during step 3.3. Format:
 After ALL clips are processed, generate a single `dashboard.html` for the batch.
 
 ```bash
-SKILL_DIR="<path-to-repo>/vlog-rough-cut"
+SKILL_DIR="$(dirname "$(readlink -f "$0")")/.."  # or the absolute path to vlog-rough-cut/
 STORYBOARD_TRANSCRIPTS="Claude output/storyboard/transcripts"
 
 node "$SKILL_DIR/scripts/generate_dashboard.js" \

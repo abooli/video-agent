@@ -44,7 +44,7 @@ const MIME_TYPES = {
   '.css': 'text/css',
 };
 
-function sendFile(res, filePath) {
+function sendFile(res, filePath, req) {
   if (!fs.existsSync(filePath)) {
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Not found: ' + filePath }));
@@ -53,13 +53,33 @@ function sendFile(res, filePath) {
   const ext = path.extname(filePath).toLowerCase();
   const mime = MIME_TYPES[ext] || 'application/octet-stream';
   const stat = fs.statSync(filePath);
+  const fileSize = stat.size;
 
-  res.writeHead(200, {
-    'Content-Type': mime,
-    'Content-Length': stat.size,
-    'Cache-Control': 'no-cache',
-  });
-  fs.createReadStream(filePath).pipe(res);
+  // Support range requests for audio/video seeking
+  const range = req && req.headers.range;
+  if (range) {
+    const parts = range.replace(/bytes=/, '').split('-');
+    const start = parseInt(parts[0], 10);
+    const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+    const chunkSize = end - start + 1;
+
+    res.writeHead(206, {
+      'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+      'Accept-Ranges': 'bytes',
+      'Content-Length': chunkSize,
+      'Content-Type': mime,
+      'Cache-Control': 'no-cache',
+    });
+    fs.createReadStream(filePath, { start, end }).pipe(res);
+  } else {
+    res.writeHead(200, {
+      'Content-Type': mime,
+      'Content-Length': fileSize,
+      'Accept-Ranges': 'bytes',
+      'Cache-Control': 'no-cache',
+    });
+    fs.createReadStream(filePath).pipe(res);
+  }
 }
 
 function readBody(req) {
@@ -224,13 +244,13 @@ const server = http.createServer(async (req, res) => {
   try {
     // GET / → dashboard.html
     if (req.method === 'GET' && pathname === '/') {
-      sendFile(res, path.join(BATCH_DIR, 'dashboard.html'));
+      sendFile(res, path.join(BATCH_DIR, 'dashboard.html'), req);
       return;
     }
 
     // GET /saved-selections → saved_selections.json
     if (req.method === 'GET' && pathname === '/saved-selections') {
-      sendFile(res, path.join(BATCH_DIR, 'saved_selections.json'));
+      sendFile(res, path.join(BATCH_DIR, 'saved_selections.json'), req);
       return;
     }
 
@@ -249,14 +269,14 @@ const server = http.createServer(async (req, res) => {
     const dataMatch = pathname.match(/^\/data\/([^/]+)\/(.+)$/);
     if (req.method === 'GET' && dataMatch) {
       const [, clip, file] = dataMatch;
-      sendFile(res, path.join(BATCH_DIR, clip, file));
+      sendFile(res, path.join(BATCH_DIR, clip, file), req);
       return;
     }
 
     // GET /audio/:filename → audio from storyboard transcripts
     const audioMatch = pathname.match(/^\/audio\/(.+)$/);
     if (req.method === 'GET' && audioMatch) {
-      sendFile(res, path.join(AUDIO_DIR, audioMatch[1]));
+      sendFile(res, path.join(AUDIO_DIR, audioMatch[1]), req);
       return;
     }
 
