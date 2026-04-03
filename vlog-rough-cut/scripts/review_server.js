@@ -273,10 +273,24 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // GET /audio/:filename → audio from storyboard transcripts
+    // GET /audio/:filename → audio from storyboard transcripts (with extension fallback)
     const audioMatch = pathname.match(/^\/audio\/(.+)$/);
     if (req.method === 'GET' && audioMatch) {
-      sendFile(res, path.join(AUDIO_DIR, audioMatch[1]), req);
+      const requested = path.join(AUDIO_DIR, audioMatch[1]);
+      if (fs.existsSync(requested)) {
+        sendFile(res, requested, req);
+      } else {
+        // Try alternate extensions: .m4a, .mp3, .mp4, .wav
+        const base = requested.replace(/\.[^.]+$/, '');
+        const fallback = ['.m4a', '.mp3', '.mp4', '.wav']
+          .map(ext => base + ext)
+          .find(f => fs.existsSync(f));
+        if (fallback) {
+          sendFile(res, fallback, req);
+        } else {
+          sendFile(res, requested, req); // 404
+        }
+      }
       return;
     }
 
