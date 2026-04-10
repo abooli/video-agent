@@ -143,27 +143,39 @@
         container: '#waveform-' + clip,
         waveColor: '#b8b3aa', progressColor: '#4a9eff', cursorColor: '#2c2c2c',
         height: 80, barWidth: 2, barGap: 1, barRadius: 2,
-        url: '/audio/' + clip + '_audio.m4a'
+        url: '/audio/' + clip + '_audio.mp3'
       });
       state.wavesurfer = ws;
+      // Pre-compute skip intervals for this clip
+      state.skipIntervals = [];
+      state.lastHighlight = -1;
+      rebuildClipSkipIntervals(clip);
+
       ws.on('timeupdate', function(t) {
+        // Skip selected segments during playback
         if (ws.isPlaying()) {
-          var sorted = Array.from(state.selected).sort(function(a,b){return a-b;});
-          for (var si = 0; si < sorted.length; si++) {
-            var w = state.words[sorted[si]];
-            if (t >= w.start && t < w.end) {
-              var endTime = w.end, j = si + 1;
-              while (j < sorted.length) { var nw = state.words[sorted[j]]; if (nw.start - endTime < 0.1) { endTime = nw.end; j++; } else break; }
-              ws.setTime(endTime); return;
+          for (var si = 0; si < state.skipIntervals.length; si++) {
+            var iv = state.skipIntervals[si];
+            if (t >= iv.start && t < iv.end) {
+              ws.setTime(iv.end);
+              return;
             }
           }
         }
+        // Always update time display and highlight (not just when paused)
         document.getElementById('time-' + clip).textContent = formatTime(t) + ' / ' + formatTime(ws.getDuration());
-        state.elements.forEach(function(el, i) {
-          var w = state.words[i];
-          if (t >= w.start && t < w.end) { if (!el.classList.contains('current')) { el.classList.add('current'); el.scrollIntoView({behavior:'smooth',block:'center'}); } }
-          else { el.classList.remove('current'); }
-        });
+        var curr = -1;
+        for (var i = 0; i < state.words.length; i++) {
+          if (t >= state.words[i].start && t < state.words[i].end) { curr = i; break; }
+        }
+        if (curr !== state.lastHighlight) {
+          if (state.lastHighlight >= 0 && state.lastHighlight < state.elements.length) state.elements[state.lastHighlight].classList.remove('current');
+          if (curr >= 0) {
+            state.elements[curr].classList.add('current');
+            state.elements[curr].scrollIntoView({behavior:'smooth',block:'center'});
+          }
+          state.lastHighlight = curr;
+        }
       });
     }
     initWaveSurfer(CLIPS[0]);
@@ -180,9 +192,27 @@
       });
     });
     function formatTime(sec) { var m = Math.floor(sec/60), s = Math.floor(sec%60); return m.toString().padStart(2,'0') + ':' + s.toString().padStart(2,'0'); }
+
+    function rebuildClipSkipIntervals(clip) {
+      var state = clipState[clip];
+      var sorted = Array.from(state.selected).sort(function(a, b) { return a - b; });
+      state.skipIntervals = [];
+      var i = 0;
+      while (i < sorted.length) {
+        var start = state.words[sorted[i]].start;
+        var end = state.words[sorted[i]].end;
+        var j = i + 1;
+        while (j < sorted.length && state.words[sorted[j]].start - end < 0.1) {
+          end = state.words[sorted[j]].end;
+          j++;
+        }
+        state.skipIntervals.push({ start: start - 0.05, end: end });
+        i = j;
+      }
+    }
     function renderClip(clip) {
       var state = clipState[clip], container = document.getElementById('content-' + clip);
-      container.innerHTML = ''; state.elements = [];
+      container.innerHTML = ''; state.elements = []; state.lastHighlight = -1;
       state.words.forEach(function(word, i) {
         var div = document.createElement('div');
         div.className = word.isGap ? 'gap' : 'word';
@@ -201,7 +231,7 @@
       var state = clipState[clip];
       if (state.selected.has(i)) { state.selected.delete(i); state.elements[i].classList.remove('selected'); if (state.autoSelected.has(i)) state.elements[i].classList.add('ai-selected'); }
       else { state.selected.add(i); state.elements[i].classList.add('selected'); state.elements[i].classList.remove('ai-selected'); }
-      updateStats(clip); updateBadge(clip);
+      rebuildClipSkipIntervals(clip); updateStats(clip); updateBadge(clip);
     }
 
     function fmtDur(sec) {
@@ -236,7 +266,7 @@
       }
       updateStats(clip); updateBadge(clip);
     });
-    document.addEventListener('mouseup', function() { CLIPS.forEach(function(c){ if (clipState[c]) clipState[c]._selecting=false; }); });
+    document.addEventListener('mouseup', function() { CLIPS.forEach(function(c){ if (clipState[c] && clipState[c]._selecting) { clipState[c]._selecting=false; rebuildClipSkipIntervals(c); } }); });
 
     // Button handlers
     document.querySelectorAll('.play-pause-btn').forEach(function(btn) {
@@ -246,7 +276,7 @@
       sel.onchange = function() { clipState[sel.dataset.clip].wavesurfer.setPlaybackRate(parseFloat(sel.value)); };
     });
     document.querySelectorAll('.clear-btn').forEach(function(btn) {
-      btn.onclick = function() { var state = clipState[btn.dataset.clip]; state.selected.clear(); state.elements.forEach(function(el, i) { el.classList.remove('selected'); if (state.autoSelected.has(i)) el.classList.add('ai-selected'); }); updateStats(btn.dataset.clip); updateBadge(btn.dataset.clip); };
+      btn.onclick = function() { var c = btn.dataset.clip, state = clipState[c]; state.selected.clear(); state.elements.forEach(function(el, i) { el.classList.remove('selected'); if (state.autoSelected.has(i)) el.classList.add('ai-selected'); }); rebuildClipSkipIntervals(c); updateStats(c); updateBadge(c); };
     });
     document.querySelectorAll('.copy-btn').forEach(function(btn) {
       btn.onclick = function() {
@@ -326,6 +356,7 @@
           var state = clipState[c];
           state.selected.clear();
           saved[c].forEach(function(i){ state.selected.add(i); });
+          rebuildClipSkipIntervals(c);
           state.elements.forEach(function(el, i) {
             el.classList.remove('selected', 'ai-selected');
             if (state.selected.has(i)) el.classList.add('selected');

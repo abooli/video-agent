@@ -280,9 +280,9 @@ const server = http.createServer(async (req, res) => {
       if (fs.existsSync(requested)) {
         sendFile(res, requested, req);
       } else {
-        // Try alternate extensions: .m4a, .mp3, .mp4, .wav
+        // Try alternate extensions: .mp3, .m4a, .mp4, .wav
         const base = requested.replace(/\.[^.]+$/, '');
-        const fallback = ['.m4a', '.mp3', '.mp4', '.wav']
+        const fallback = ['.mp3', '.m4a', '.mp4', '.wav']
           .map(ext => base + ext)
           .find(f => fs.existsSync(f));
         if (fallback) {

@@ -182,6 +182,7 @@
     function render() {
       content.innerHTML = '';
       elements = [];
+      lastHighlight = -1;
       words.forEach(function(word, i) {
         var div = document.createElement('div');
         div.className = word.isGap ? 'gap' : 'word';
@@ -229,7 +230,7 @@
       }
       updateStats();
     });
-    document.addEventListener('mouseup', function() { isSelecting = false; });
+    document.addEventListener('mouseup', function() { if (isSelecting) rebuildSkipIntervals(); isSelecting = false; });
 
     function toggle(i) {
       if (selected.has(i)) {
@@ -241,6 +242,7 @@
         elements[i].classList.add('selected');
         elements[i].classList.remove('ai-selected');
       }
+      rebuildSkipIntervals();
       updateStats();
     }
 
@@ -264,36 +266,53 @@
         '<div class="stats-item"><div class="stats-label">Segments</div><div class="stats-value">' + selected.size + '</div></div>';
     }
 
+    // Pre-computed skip intervals (rebuilt when selection changes)
+    var skipIntervals = [];
+    function rebuildSkipIntervals() {
+      var sorted = Array.from(selected).sort(function(a, b) { return a - b; });
+      skipIntervals = [];
+      var i = 0;
+      while (i < sorted.length) {
+        var start = words[sorted[i]].start;
+        var end = words[sorted[i]].end;
+        var j = i + 1;
+        while (j < sorted.length && words[sorted[j]].start - end < 0.1) {
+          end = words[sorted[j]].end;
+          j++;
+        }
+        skipIntervals.push({ start: start - 0.05, end: end });
+        i = j;
+      }
+    }
+    rebuildSkipIntervals();
+
     // Time update, highlight current word, skip selected during playback
+    var lastHighlight = -1;
     wavesurfer.on('timeupdate', function(t) {
+      // Skip selected segments during playback
       if (wavesurfer.isPlaying()) {
-        var sorted = Array.from(selected).sort(function(a, b) { return a - b; });
-        for (var si = 0; si < sorted.length; si++) {
-          var w = words[sorted[si]];
-          if (t >= w.start && t < w.end) {
-            var endTime = w.end;
-            var j = si + 1;
-            while (j < sorted.length) {
-              var nw = words[sorted[j]];
-              if (nw.start - endTime < 0.1) { endTime = nw.end; j++; } else break;
-            }
-            wavesurfer.setTime(endTime);
+        for (var si = 0; si < skipIntervals.length; si++) {
+          var iv = skipIntervals[si];
+          if (t >= iv.start && t < iv.end) {
+            wavesurfer.setTime(iv.end);
             return;
           }
         }
       }
+      // Always update time display and highlight (not just when paused)
       timeDisplay.textContent = formatTime(t) + ' / ' + formatTime(wavesurfer.getDuration());
-      elements.forEach(function(el, i) {
-        var w = words[i];
-        if (t >= w.start && t < w.end) {
-          if (!el.classList.contains('current')) {
-            el.classList.add('current');
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-        } else {
-          el.classList.remove('current');
+      var curr = -1;
+      for (var i = 0; i < words.length; i++) {
+        if (t >= words[i].start && t < words[i].end) { curr = i; break; }
+      }
+      if (curr !== lastHighlight) {
+        if (lastHighlight >= 0 && lastHighlight < elements.length) elements[lastHighlight].classList.remove('current');
+        if (curr >= 0) {
+          elements[curr].classList.add('current');
+          elements[curr].scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
-      });
+        lastHighlight = curr;
+      }
     });
 
     function copyDeleteList() {
@@ -321,6 +340,7 @@
         el.classList.remove('selected');
         if (autoSelected.has(i)) el.classList.add('ai-selected');
       });
+      rebuildSkipIntervals();
       updateStats();
     }
 
@@ -431,6 +451,7 @@
       .then(function(savedIndices) {
         selected.clear();
         savedIndices.forEach(function(i) { selected.add(i); });
+        rebuildSkipIntervals();
         render();
         var status = document.getElementById('saveStatus');
         status.textContent = '↩ Restored ' + savedIndices.length + ' saved selections';
