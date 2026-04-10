@@ -157,7 +157,28 @@ const server = http.createServer((req, res) => {
   }
   const ext = path.extname(filePath);
   const mime = MIME_TYPES[ext] || 'application/octet-stream';
-  res.writeHead(200, { 'Content-Type': mime });
+  const stat = fs.statSync(filePath);
+
+  // Range requests (required for wavesurfer seeking/preview)
+  if (req.headers.range && (ext === '.mp3' || ext === '.mp4')) {
+    const range = req.headers.range.replace('bytes=', '').split('-');
+    const start = parseInt(range[0], 10);
+    const end = range[1] ? parseInt(range[1], 10) : stat.size - 1;
+    res.writeHead(206, {
+      'Content-Type': mime,
+      'Content-Range': `bytes ${start}-${end}/${stat.size}`,
+      'Accept-Ranges': 'bytes',
+      'Content-Length': end - start + 1,
+    });
+    fs.createReadStream(filePath, { start, end }).pipe(res);
+    return;
+  }
+
+  res.writeHead(200, {
+    'Content-Type': mime,
+    'Content-Length': stat.size,
+    'Accept-Ranges': 'bytes'
+  });
   fs.createReadStream(filePath).pipe(res);
 });
 
