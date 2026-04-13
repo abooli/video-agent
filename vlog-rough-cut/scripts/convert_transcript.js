@@ -30,23 +30,12 @@ function main() {
 
   const transcript = JSON.parse(fs.readFileSync(transcriptPath, 'utf-8'));
 
-  // --- Detect format and extract words ---
-  let rawWords;
-  if (transcript.results && transcript.results.channels) {
-    // Deepgram format
-    rawWords = transcript.results.channels[0].alternatives[0].words;
-  } else if (transcript.segments) {
-    // WhisperX fallback
-    rawWords = [];
-    for (const seg of transcript.segments) {
-      for (const w of (seg.words || [])) {
-        rawWords.push(w);
-      }
-    }
-  } else {
-    console.error('Unknown transcript format. Expected Deepgram or WhisperX.');
+  // --- Extract words from Deepgram native format ---
+  if (!transcript.results || !transcript.results.channels) {
+    console.error('Unknown transcript format. Expected Deepgram native JSON (results.channels[0].alternatives[0].words[]).');
     process.exit(1);
   }
+  const rawWords = transcript.results.channels[0].alternatives[0].words;
 
   // --- 1. Build subtitles_words (word-level with gaps) ---
   const subtitleWords = [];
@@ -58,7 +47,7 @@ function main() {
     if (w.start - prevEnd > 0.01) {
       subtitleWords.push({ text: '', start: prevEnd, end: w.start, isGap: true });
     }
-    // Deepgram uses punctuated_word, WhisperX uses word
+    // Deepgram uses punctuated_word
     const text = w.punctuated_word || w.word;
     subtitleWords.push({ text, start: w.start, end: w.end, isGap: false });
   }

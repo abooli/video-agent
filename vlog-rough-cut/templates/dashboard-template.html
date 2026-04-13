@@ -1,381 +1,267 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rough Cut Review — __BATCH_NAME__</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-  <script src="https://unpkg.com/wavesurfer.js@7"></script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #faf9f7; color: #2c2c2c; display: flex; height: 100vh;
-    }
-    .sidebar {
-      width: 220px; background: #f0eeea; border-right: 1px solid #e0ddd8;
-      padding: 20px 16px; flex-shrink: 0; display: flex; flex-direction: column;
-    }
-    .sidebar h1 {
-      font-family: 'Newsreader', Georgia, serif; font-size: 16px; font-weight: 600;
-      color: #1a1a1a; margin-bottom: 16px;
-    }
-    .tab-btn {
-      display: flex; align-items: center; justify-content: space-between;
-      width: 100%; padding: 10px 12px; margin-bottom: 4px;
-      background: transparent; border: 1px solid transparent; border-radius: 8px;
-      color: #555; font-size: 14px; cursor: pointer; text-align: left;
-      font-family: 'Inter', sans-serif; font-weight: 500;
-    }
-    .tab-btn:hover { background: #e8e5e0; }
-    .tab-btn.active { background: #fff; border-color: #d0cdc8; color: #1a1a1a; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-    .tab-btn .badge { font-size: 11px; background: #f59e0b; color: #fff; padding: 2px 6px; border-radius: 10px; font-weight: 600; }
-    .tab-btn.active .badge { background: #4a9eff; }
-    .sidebar-spacer { flex: 1; }
-    .save-all-btn {
-      width: 100%; padding: 10px; background: #2196F3; color: #fff;
-      border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; margin-top: 12px;
-    }
-    .save-all-btn:hover { background: #1976D2; }
-    .cut-all-btn {
-      width: 100%; padding: 12px; background: #7c3aed; color: #fff;
-      border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; margin-top: 8px;
-    }
-    .cut-all-btn:hover { background: #6d28d9; }
-    .main { flex: 1; overflow-y: auto; padding: 24px; max-width: 900px; }
-    .tab-panel { display: none; }
-    .tab-panel.active { display: block; }
-    .controls { position: sticky; top: 0; background: #faf9f7; padding: 15px 0; border-bottom: 1px solid #e0ddd8; z-index: 100; }
-    .buttons { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 15px; }
-    button { padding: 8px 16px; background: #3d8c40; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-family: 'Inter', sans-serif; font-weight: 500; }
-    button:hover { background: #357a38; }
-    button.danger { background: #d32f2f; }
-    button.danger:hover { background: #b71c1c; }
-    select { padding: 8px 12px; background: #fff; color: #2c2c2c; border: 1px solid #d0cdc8; border-radius: 6px; font-size: 14px; font-family: 'Inter', sans-serif; }
-    .time-display { font-family: 'SF Mono', 'Consolas', monospace; font-size: 15px; color: #888; }
-    .waveform-container { background: #f0eeea; border-radius: 6px; margin: 10px 0; height: 80px; }
-    .help { font-size: 13px; color: #888; margin-top: 10px; background: #f0eeea; padding: 12px; border-radius: 8px; line-height: 1.8; }
-    .help b { color: #2c2c2c; }
-    .content { line-height: 2.5; padding: 20px 0; }
-    .word { display: inline-block; padding: 4px 2px; margin: 2px; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
-    .word:hover { background: #e8e5e0; }
-    .word.current { background: #4a9eff; color: white; }
-    .word.selected { background: #d32f2f; color: white; text-decoration: line-through; }
-    .word.ai-selected { background: #f59e0b; color: white; }
-    .word.ai-selected.selected { background: #d32f2f; }
-    .gap { display: inline-block; background: #e8e5e0; color: #999; padding: 4px 8px; margin: 2px; border-radius: 4px; font-size: 12px; cursor: pointer; }
-    .gap:hover { background: #ddd9d3; }
-    .gap.selected { background: #d32f2f; color: white; }
-    .gap.ai-selected { background: #f59e0b; color: white; }
-    .gap.ai-selected.selected { background: #d32f2f; }
-    .stats { margin-top: 10px; padding: 12px 16px; background: #f0eeea; border-radius: 6px; font-size: 14px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
-    .stats-item { display: flex; flex-direction: column; gap: 2px; }
-    .stats-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
-    .stats-value { font-size: 16px; font-weight: 600; font-family: monospace; }
-    .stats-value.after { color: #4CAF50; }
-    .stats-value.removed { color: #ff9800; }
-    .loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.92); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
-    .loading-overlay.show { display: flex; }
-    .loading-spinner { width: 60px; height: 60px; border: 4px solid #e0ddd8; border-top-color: #7c3aed; border-radius: 50%; animation: spin 1s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .loading-text { margin-top: 20px; font-size: 18px; color: #2c2c2c; font-family: 'Newsreader', serif; }
-    .loading-progress-container { margin-top: 20px; width: 300px; height: 8px; background: #e0ddd8; border-radius: 4px; overflow: hidden; }
-    .loading-progress-bar { height: 100%; background: linear-gradient(90deg, #7c3aed, #ec4899); width: 0%; transition: width 0.3s ease; }
-    .loading-time { margin-top: 15px; font-size: 14px; color: #888; }
-  </style>
-</head>
-<body>
-  <div class="loading-overlay" id="loadingOverlay">
-    <div class="loading-spinner"></div>
-    <div class="loading-text">🎬 Cutting...</div>
-    <div class="loading-progress-container"><div class="loading-progress-bar" id="loadingProgress"></div></div>
-    <div class="loading-time" id="loadingTime">Elapsed: 0s</div>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rough Cut Review — __BATCH_NAME__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #faf9f7; color: #2c2c2c; height: 100vh; display: flex; overflow: hidden; }
+.sidebar { width: 320px; flex-shrink: 0; padding: 16px; display: flex; flex-direction: column; gap: 10px; border-right: 1px solid #e0ddd8; background: #f0eeea; overflow-y: auto; }
+.sidebar h1 { font-family: 'Newsreader', Georgia, serif; font-size: 22px; font-weight: 600; color: #1a1a1a; }
+.clip-list { display: flex; flex-direction: column; gap: 4px; max-height: 240px; overflow-y: auto; }
+.tab-btn { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 10px 12px; background: transparent; border: 1px solid transparent; border-radius: 8px; color: #555; font-size: 14px; cursor: pointer; text-align: left; font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
+.tab-btn:hover { background: #e8e5e0; }
+.tab-btn.active { background: #fff; border-color: #d0cdc8; color: #1a1a1a; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.tab-btn .badge { font-size: 11px; background: #f59e0b; color: #fff; padding: 2px 6px; border-radius: 10px; font-weight: 600; }
+.tab-btn.active .badge { background: #4a9eff; }
+#player { width: 100%; border-radius: 6px; background: #000; }
+.stats { padding: 12px 16px; background: #fff; border-radius: 6px; font-size: 14px; display: flex; gap: 20px; flex-wrap: wrap; border: 1px solid #e0ddd8; }
+.stats-item { display: flex; flex-direction: column; gap: 2px; }
+.stats-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+.stats-value { font-size: 16px; font-weight: 600; font-family: monospace; }
+.stats-value.after { color: #4CAF50; }
+.stats-value.removed { color: #ff9800; }
+.help { font-size: 12px; color: #888; background: #fff; padding: 10px; border-radius: 6px; line-height: 1.8; border: 1px solid #e0ddd8; }
+.help b { color: #2c2c2c; }
+.sidebar-buttons { display: flex; flex-direction: column; gap: 6px; margin-top: auto; }
+.save-btn { width: 100%; padding: 10px; background: #2196F3; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; }
+.save-btn:hover { background: #1976D2; }
+.cut-all-btn { width: 100%; padding: 12px; background: #7c3aed; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; }
+.cut-all-btn:hover { background: #6d28d9; }
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.controls { position: sticky; top: 0; background: #faf9f7; padding: 15px 24px; border-bottom: 1px solid #e0ddd8; z-index: 100; }
+.buttons { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+button { padding: 8px 16px; background: #3d8c40; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-family: 'Newsreader', Georgia, serif; font-weight: 600; }
+button:hover { background: #357a38; }
+button.danger { background: #d32f2f; }
+button.danger:hover { background: #b71c1c; }
+select { padding: 8px 12px; background: #fff; color: #2c2c2c; border: 1px solid #d0cdc8; border-radius: 6px; font-size: 14px; font-family: 'Inter', sans-serif; }
+.time-display { font-family: 'SF Mono', 'Consolas', monospace; font-size: 15px; color: #888; }
+.right-panel { flex: 1; overflow-y: auto; padding: 20px 24px; }
+.content { line-height: 2.5; }
+.word { display: inline-block; padding: 4px 2px; margin: 2px; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+.word:hover { background: #e8e5e0; }
+.word.current { background: #4a9eff; color: white; }
+.word.selected { background: #d32f2f; color: white; text-decoration: line-through; }
+.word.ai-selected { background: #f59e0b; color: white; }
+.word.ai-selected.selected { background: #d32f2f; }
+.gap { display: inline-block; background: #e8e5e0; color: #999; padding: 4px 8px; margin: 2px; border-radius: 4px; font-size: 12px; cursor: pointer; }
+.gap:hover { background: #ddd9d3; }
+.gap.selected { background: #d32f2f; color: white; }
+.gap.ai-selected { background: #f59e0b; color: white; }
+.gap.ai-selected.selected { background: #d32f2f; }
+.loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.92); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
+.loading-overlay.show { display: flex; }
+.loading-spinner { width: 60px; height: 60px; border: 4px solid #e0ddd8; border-top-color: #7c3aed; border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { margin-top: 20px; font-size: 18px; color: #2c2c2c; font-family: 'Newsreader', serif; }
+.loading-progress-container { margin-top: 20px; width: 300px; height: 8px; background: #e0ddd8; border-radius: 4px; overflow: hidden; }
+.loading-progress-bar { height: 100%; background: linear-gradient(90deg, #7c3aed, #ec4899); width: 0%; transition: width 0.3s ease; }
+.loading-time { margin-top: 15px; font-size: 14px; color: #888; }
+</style>
+</head><body>
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">🎬 Cutting...</div>
+  <div class="loading-progress-container"><div class="loading-progress-bar" id="loadingProgress"></div></div>
+  <div class="loading-time" id="loadingTime">Elapsed: 0s</div>
+</div>
+<div class="sidebar">
+  <h1>__BATCH_NAME__</h1>
+  <video id="player" preload="auto"></video>
+  <div class="stats" id="stats"></div>
+  <div class="help">
+    <div><b>🖱️</b> Click=jump | Dbl-click=toggle | Shift+drag=batch</div>
+    <div><b>⌨️</b> Space=play | ←→=1s | Shift+←→=5s</div>
+    <div><b>🎨</b> <span style="color:#f59e0b">Orange</span>=AI | <span style="color:#d32f2f">Red</span>=delete</div>
   </div>
-  <div class="sidebar">
-    <h1>__BATCH_NAME__</h1>
+  <div class="clip-list">
 <!--__TAB_BUTTONS__-->
-    <div class="sidebar-spacer"></div>
-    <button class="save-all-btn" id="saveAllBtn">💾 Save Progress</button>
+  </div>
+  <div class="sidebar-buttons">
+    <button class="save-btn" id="saveBtn">💾 Save Progress</button>
     <button class="cut-all-btn" id="cutAllBtn">✂️ Cut All Clips</button>
   </div>
-  <div class="main">
-<!--__TAB_PANELS__-->
+</div>
+<div class="main">
+  <div class="controls">
+    <div class="buttons">
+      <button id="playBtn">▶️ Play / Pause</button>
+      <select id="speed">
+        <option value="0.5">0.5x</option><option value="0.75">0.75x</option>
+        <option value="1" selected>1x</option><option value="1.25">1.25x</option>
+        <option value="1.5">1.5x</option><option value="2">2x</option>
+      </select>
+      <button id="copyBtn">📋 Copy Speech</button>
+      <button style="background:#7c3aed" id="cutOneBtn">🎬 Cut</button>
+      <button class="danger" id="clearBtn">🗑️ Clear</button>
+      <span class="time-display" id="time">00:00 / 00:00</span>
+      <span id="saveStatus" style="font-size:13px;color:#888"></span>
+    </div>
   </div>
-  <script>
-    /*__CLIP_DATA__*/
-    var clipState = {};
-    var activeClip = CLIPS[0];
+  <div class="right-panel">
+    <div class="content" id="content"></div>
+  </div>
+</div>
+<script>
+/*__CLIP_DATA__*/
+var clipState = {};
+var activeClip = CLIPS[0];
 
-    // Orphaned silence cleanup: gaps surrounded by deletion zones on both sides → delete
-    function applyOrphanedSilenceRule(words, selected) {
-      var changed = true;
-      while (changed) {
-        changed = false;
-        for (var i = 0; i < words.length; i++) {
-          if (!words[i].isGap || selected.has(i)) continue;
-          var leftBound = i > 0 && selected.has(i - 1);
-          var rightBound = i < words.length - 1 && selected.has(i + 1);
-          if (leftBound && rightBound) { selected.add(i); changed = true; }
-        }
+// Web Audio gainNode for instant mute during skips
+var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+var player = document.getElementById('player');
+var source = audioCtx.createMediaElementSource(player);
+var gainNode = audioCtx.createGain();
+source.connect(gainNode); gainNode.connect(audioCtx.destination);
+player.addEventListener('play', function(){ if(audioCtx.state==='suspended') audioCtx.resume(); });
+
+function applyOrphanedSilenceRule(words, selected) {
+  var changed = true;
+  while (changed) {
+    changed = false;
+    for (var i = 0; i < words.length; i++) {
+      if (!words[i].isGap || selected.has(i)) continue;
+      if (i > 0 && selected.has(i-1) && i < words.length-1 && selected.has(i+1)) { selected.add(i); changed = true; }
+    }
+  }
+}
+
+CLIPS.forEach(function(clip) {
+  var words = CLIP_WORDS[clip];
+  var autoSelected = new Set(CLIP_AUTO[clip]);
+  applyOrphanedSilenceRule(words, autoSelected);
+  clipState[clip] = { words: words, autoSelected: autoSelected, selected: new Set(autoSelected), elements: [], skipIntervals: [], lastHighlight: -1, skipLock: false, _selecting: false, _selectStart: -1, _selectMode: 'add' };
+});
+
+function switchClip(clip) {
+  if (activeClip === clip) return;
+  player.pause();
+  activeClip = clip;
+  player.src = '/video/' + clip + '.mov';
+  document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.clip === clip); });
+  renderClip(clip);
+  rebuildSkipIntervals(clip);
+  updateStats(clip);
+}
+
+// Init first clip
+player.src = '/video/' + CLIPS[0] + '.mov';
+renderClip(CLIPS[0]);
+rebuildSkipIntervals(CLIPS[0]);
+
+document.querySelectorAll('.tab-btn').forEach(function(btn){ btn.addEventListener('click', function(){ switchClip(btn.dataset.clip); }); });
+
+function rebuildSkipIntervals(clip) {
+  var state = clipState[clip], sorted = Array.from(state.selected).sort(function(a,b){return a-b;});
+  state.skipIntervals = []; var i = 0;
+  while (i < sorted.length) {
+    var start = state.words[sorted[i]].start, end = state.words[sorted[i]].end, j = i+1;
+    while (j < sorted.length && state.words[sorted[j]].start - end < 0.1) { end = state.words[sorted[j]].end; j++; }
+    state.skipIntervals.push({ start: start-0.05, end: end }); i = j;
+  }
+}
+
+// rAF tick — skipLock + gainNode pattern
+function tick() {
+  requestAnimationFrame(tick);
+  var state = clipState[activeClip]; if (!state) return;
+  var t = player.currentTime;
+  if (!player.paused) {
+    for (var si=0; si<state.skipIntervals.length; si++) {
+      var iv = state.skipIntervals[si];
+      if (t >= iv.start && t < iv.end) {
+        if (!state.skipLock) { state.skipLock=true; gainNode.gain.setValueAtTime(0,audioCtx.currentTime); player.currentTime=iv.end; }
+        return;
       }
     }
+    if (state.skipLock) { state.skipLock=false; gainNode.gain.setValueAtTime(1,audioCtx.currentTime); }
+  }
+  document.getElementById('time').textContent = formatTime(t)+' / '+formatTime(player.duration||0);
+  var curr = -1;
+  for (var i=0; i<state.words.length; i++) { if (t>=state.words[i].start && t<state.words[i].end) { curr=i; break; } }
+  if (curr !== state.lastHighlight) {
+    if (state.lastHighlight>=0 && state.lastHighlight<state.elements.length) state.elements[state.lastHighlight].classList.remove('current');
+    if (curr>=0) { state.elements[curr].classList.add('current'); state.elements[curr].scrollIntoView({behavior:'smooth',block:'center'}); }
+    state.lastHighlight = curr;
+  }
+}
+requestAnimationFrame(tick);
 
-    // Set up clip state (data only, no WaveSurfer yet)
-    CLIPS.forEach(function(clip) {
-      var words = CLIP_WORDS[clip];
-      var autoSelected = new Set(CLIP_AUTO[clip]);
-      applyOrphanedSilenceRule(words, autoSelected);
-      clipState[clip] = {
-        words: words, autoSelected: autoSelected,
-        selected: new Set(autoSelected), elements: [],
-        wavesurfer: null, _selecting: false, _selectStart: -1, _selectMode: 'add'
-      };
-      renderClip(clip);
-    });
+function formatTime(sec) { var m=Math.floor(sec/60),s=Math.floor(sec%60); return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0'); }
+function fmtDur(sec) { var s=Math.round(sec),m=Math.floor(s/60); return m+'m '+(s%60)+'s'; }
 
-    // Lazy WaveSurfer init — called when a tab becomes active
-    function initWaveSurfer(clip) {
-      if (clipState[clip].wavesurfer) return;
-      var state = clipState[clip];
-      var ws = WaveSurfer.create({
-        container: '#waveform-' + clip,
-        waveColor: '#b8b3aa', progressColor: '#4a9eff', cursorColor: '#2c2c2c',
-        height: 80, barWidth: 2, barGap: 1, barRadius: 2,
-        url: '/audio/' + clip + '_audio.mp3'
-      });
-      state.wavesurfer = ws;
-      // Pre-compute skip intervals for this clip
-      state.skipIntervals = [];
-      state.lastHighlight = -1;
-      rebuildClipSkipIntervals(clip);
+function renderClip(clip) {
+  var state = clipState[clip], container = document.getElementById('content');
+  container.innerHTML = ''; state.elements = []; state.lastHighlight = -1;
+  state.words.forEach(function(word, i) {
+    var div = document.createElement('div');
+    div.className = word.isGap ? 'gap' : 'word';
+    if (state.selected.has(i)) div.classList.add('selected');
+    else if (state.autoSelected.has(i)) div.classList.add('ai-selected');
+    div.textContent = word.isGap ? ('⏸ '+(word.end-word.start).toFixed(1)+'s') : word.text;
+    div.dataset.index = i;
+    div.onclick = function(){ if(!state._selecting) player.currentTime=word.start; };
+    div.ondblclick = function(){ toggleWord(clip, i); };
+    div.onmousedown = function(e){ if(e.shiftKey){state._selecting=true;state._selectStart=i;state._selectMode=state.selected.has(i)?'remove':'add';e.preventDefault();} };
+    container.appendChild(div); state.elements.push(div);
+  });
+  updateStats(clip);
+}
 
-      ws.on('timeupdate', function(t) {
-        // Skip selected segments during playback
-        if (ws.isPlaying()) {
-          for (var si = 0; si < state.skipIntervals.length; si++) {
-            var iv = state.skipIntervals[si];
-            if (t >= iv.start && t < iv.end) {
-              ws.setTime(iv.end);
-              return;
-            }
-          }
-        }
-        // Always update time display and highlight (not just when paused)
-        document.getElementById('time-' + clip).textContent = formatTime(t) + ' / ' + formatTime(ws.getDuration());
-        var curr = -1;
-        for (var i = 0; i < state.words.length; i++) {
-          if (t >= state.words[i].start && t < state.words[i].end) { curr = i; break; }
-        }
-        if (curr !== state.lastHighlight) {
-          if (state.lastHighlight >= 0 && state.lastHighlight < state.elements.length) state.elements[state.lastHighlight].classList.remove('current');
-          if (curr >= 0) {
-            state.elements[curr].classList.add('current');
-            state.elements[curr].scrollIntoView({behavior:'smooth',block:'center'});
-          }
-          state.lastHighlight = curr;
-        }
-      });
-    }
-    initWaveSurfer(CLIPS[0]);
+function toggleWord(clip, i) {
+  var state = clipState[clip];
+  if (state.selected.has(i)) { state.selected.delete(i); state.elements[i].classList.remove('selected'); if(state.autoSelected.has(i)) state.elements[i].classList.add('ai-selected'); }
+  else { state.selected.add(i); state.elements[i].classList.add('selected'); state.elements[i].classList.remove('ai-selected'); }
+  rebuildSkipIntervals(clip); updateStats(clip); updateBadge(clip);
+}
+function updateBadge(clip) { var b=document.querySelector('.tab-btn[data-clip="'+clip+'"] .badge'); if(b) b.textContent=clipState[clip].selected.size; }
+function updateStats(clip) {
+  var state=clipState[clip], deletedDur=0, totalDur=state.words.length>0?state.words[state.words.length-1].end:0;
+  state.selected.forEach(function(i){ deletedDur+=state.words[i].end-state.words[i].start; });
+  var afterDur=Math.max(0,totalDur-deletedDur), pct=totalDur>0?((deletedDur/totalDur)*100).toFixed(0):0;
+  document.getElementById('stats').innerHTML =
+    '<div class="stats-item"><div class="stats-label">Original</div><div class="stats-value">'+fmtDur(totalDur)+'</div></div>'+
+    '<div class="stats-item"><div class="stats-label">After cut</div><div class="stats-value after">'+fmtDur(afterDur)+'</div></div>'+
+    '<div class="stats-item"><div class="stats-label">Segments</div><div class="stats-value">'+state.selected.size+'</div></div>'+
+    '<div class="stats-item"><div class="stats-label">Removed</div><div class="stats-value removed">'+fmtDur(deletedDur)+' ('+pct+'%)</div></div>';
+}
 
-    // Tab switching
-    document.querySelectorAll('.tab-btn').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
-        document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});
-        btn.classList.add('active');
-        document.getElementById('panel-' + btn.dataset.clip).classList.add('active');
-        activeClip = btn.dataset.clip;
-        initWaveSurfer(activeClip);
-      });
-    });
-    function formatTime(sec) { var m = Math.floor(sec/60), s = Math.floor(sec%60); return m.toString().padStart(2,'0') + ':' + s.toString().padStart(2,'0'); }
+// Shift+drag
+document.addEventListener('mousemove', function(e) {
+  var state=clipState[activeClip]; if(!state._selecting) return;
+  var target=e.target.closest('[data-index]'); if(!target) return;
+  var i=parseInt(target.dataset.index), min=Math.min(state._selectStart,i), max=Math.max(state._selectStart,i);
+  for (var j=min;j<=max;j++) {
+    if (state._selectMode==='add') { state.selected.add(j); state.elements[j].classList.add('selected'); state.elements[j].classList.remove('ai-selected'); }
+    else { state.selected.delete(j); state.elements[j].classList.remove('selected'); if(state.autoSelected.has(j)) state.elements[j].classList.add('ai-selected'); }
+  }
+  updateStats(activeClip); updateBadge(activeClip);
+});
+document.addEventListener('mouseup', function(){ var s=clipState[activeClip]; if(s&&s._selecting){s._selecting=false;rebuildSkipIntervals(activeClip);} });
 
-    function rebuildClipSkipIntervals(clip) {
-      var state = clipState[clip];
-      var sorted = Array.from(state.selected).sort(function(a, b) { return a - b; });
-      state.skipIntervals = [];
-      var i = 0;
-      while (i < sorted.length) {
-        var start = state.words[sorted[i]].start;
-        var end = state.words[sorted[i]].end;
-        var j = i + 1;
-        while (j < sorted.length && state.words[sorted[j]].start - end < 0.1) {
-          end = state.words[sorted[j]].end;
-          j++;
-        }
-        state.skipIntervals.push({ start: start - 0.05, end: end });
-        i = j;
-      }
-    }
-    function renderClip(clip) {
-      var state = clipState[clip], container = document.getElementById('content-' + clip);
-      container.innerHTML = ''; state.elements = []; state.lastHighlight = -1;
-      state.words.forEach(function(word, i) {
-        var div = document.createElement('div');
-        div.className = word.isGap ? 'gap' : 'word';
-        if (state.selected.has(i)) div.classList.add('selected');
-        else if (state.autoSelected.has(i)) div.classList.add('ai-selected');
-        div.textContent = word.isGap ? ('⏸ ' + (word.end - word.start).toFixed(1) + 's') : word.text;
-        div.dataset.index = i; div.dataset.clip = clip;
-        div.onclick = function() { if (!state._selecting) state.wavesurfer.setTime(word.start); };
-        div.ondblclick = function() { toggleWord(clip, i); };
-        div.onmousedown = function(e) { if (e.shiftKey) { state._selecting = true; state._selectStart = i; state._selectMode = state.selected.has(i) ? 'remove' : 'add'; e.preventDefault(); } };
-        container.appendChild(div); state.elements.push(div);
-      });
-      updateStats(clip);
-    }
-    function toggleWord(clip, i) {
-      var state = clipState[clip];
-      if (state.selected.has(i)) { state.selected.delete(i); state.elements[i].classList.remove('selected'); if (state.autoSelected.has(i)) state.elements[i].classList.add('ai-selected'); }
-      else { state.selected.add(i); state.elements[i].classList.add('selected'); state.elements[i].classList.remove('ai-selected'); }
-      rebuildClipSkipIntervals(clip); updateStats(clip); updateBadge(clip);
-    }
+// Buttons
+document.getElementById('playBtn').onclick = function(){ if(player.paused) player.play(); else player.pause(); };
+document.getElementById('speed').onchange = function(){ player.playbackRate=parseFloat(this.value); };
+document.getElementById('clearBtn').onclick = function(){ var s=clipState[activeClip]; s.selected.clear(); s.elements.forEach(function(el,i){el.classList.remove('selected');if(s.autoSelected.has(i))el.classList.add('ai-selected');}); rebuildSkipIntervals(activeClip); updateStats(activeClip); updateBadge(activeClip); };
+document.getElementById('copyBtn').onclick = function(){ var s=clipState[activeClip],kept=[]; s.words.forEach(function(w,i){if(!w.isGap&&!s.selected.has(i))kept.push(w.text);}); navigator.clipboard.writeText(kept.join(' ')).then(function(){alert('Copied: '+kept.length+' words');}); };
 
-    function fmtDur(sec) {
-      var s = Math.round(sec), m = Math.floor(s / 60);
-      return m + 'm ' + (s % 60) + 's';
-    }
-    function updateStats(clip) {
-      var state = clipState[clip], deletedDur = 0;
-      var totalDur = state.words.length > 0 ? state.words[state.words.length - 1].end : 0;
-      state.selected.forEach(function(i) { deletedDur += state.words[i].end - state.words[i].start; });
-      var afterDur = Math.max(0, totalDur - deletedDur);
-      var pct = totalDur > 0 ? ((deletedDur / totalDur) * 100).toFixed(0) : 0;
-      document.getElementById('stats-' + clip).innerHTML =
-        '<div class="stats-item"><div class="stats-label">Original</div><div class="stats-value">' + fmtDur(totalDur) + '</div></div>' +
-        '<div class="stats-item"><div class="stats-label">After cut</div><div class="stats-value after">' + fmtDur(afterDur) + '</div></div>' +
-        '<div class="stats-item"><div class="stats-label">Removed</div><div class="stats-value removed">' + fmtDur(deletedDur) + ' (' + pct + '%)</div></div>' +
-        '<div class="stats-item"><div class="stats-label">Segments</div><div class="stats-value">' + state.selected.size + '</div></div>';
-    }
-    function updateBadge(clip) {
-      var btn = document.querySelector('.tab-btn[data-clip="' + clip + '"] .badge');
-      if (btn) btn.textContent = clipState[clip].selected.size;
-    }
+// Loading
+var _loadingTimer=null;
+function showLoading(est) { document.getElementById('loadingOverlay').classList.add('show'); var start=Date.now(); _loadingTimer=setInterval(function(){ var e=Math.floor((Date.now()-start)/1000); document.getElementById('loadingTime').textContent='Elapsed: '+e+'s'; document.getElementById('loadingProgress').style.width=Math.min(95,(e/est)*100)+'%'; },500); }
+function hideLoading() { clearInterval(_loadingTimer); document.getElementById('loadingProgress').style.width='100%'; setTimeout(function(){ document.getElementById('loadingOverlay').classList.remove('show'); document.getElementById('loadingProgress').style.width='0%'; },300); }
 
-    // Shift+drag multi-select
-    document.addEventListener('mousemove', function(e) {
-      var target = e.target.closest('[data-index]'); if (!target) return;
-      var clip = target.dataset.clip, state = clipState[clip]; if (!state._selecting) return;
-      var i = parseInt(target.dataset.index), min = Math.min(state._selectStart, i), max = Math.max(state._selectStart, i);
-      for (var j = min; j <= max; j++) {
-        if (state._selectMode === 'add') { state.selected.add(j); state.elements[j].classList.add('selected'); state.elements[j].classList.remove('ai-selected'); }
-        else { state.selected.delete(j); state.elements[j].classList.remove('selected'); if (state.autoSelected.has(j)) state.elements[j].classList.add('ai-selected'); }
-      }
-      updateStats(clip); updateBadge(clip);
-    });
-    document.addEventListener('mouseup', function() { CLIPS.forEach(function(c){ if (clipState[c] && clipState[c]._selecting) { clipState[c]._selecting=false; rebuildClipSkipIntervals(c); } }); });
+document.getElementById('cutOneBtn').onclick = function(){ var dur=player.duration||0,est=Math.max(5,Math.ceil(dur/4)); if(!confirm('Cut '+activeClip+'?\nEstimated: ~'+est+'s')) return; var sel=Array.from(clipState[activeClip].selected).sort(function(a,b){return a-b;}); showLoading(est); fetch('/cut/'+activeClip,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selected:sel})}).then(function(r){return r.json();}).then(function(d){hideLoading();alert(d.ok?'✅ '+activeClip+' → '+d.output:'❌ '+d.error);}).catch(function(err){hideLoading();alert('❌ '+err.message);}); };
+document.getElementById('cutAllBtn').onclick = function(){ var summary=CLIPS.map(function(c){return c+': '+clipState[c].selected.size;}).join('\n'); if(!confirm('Cut all clips?\n\n'+summary)) return; var payload={}; CLIPS.forEach(function(c){payload[c]=Array.from(clipState[c].selected).sort(function(a,b){return a-b;});}); showLoading(30); fetch('/cut-all',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(function(r){return r.json();}).then(function(d){hideLoading();if(d.ok)alert('✅ All cut!');else{var m=Object.entries(d.results).map(function(e){return e[0]+': '+(e[1].ok?'✅':'❌ '+e[1].error);});alert(m.join('\n'));}}).catch(function(err){hideLoading();alert('❌ '+err.message);}); };
+document.getElementById('saveBtn').onclick = function(){ var payload={}; CLIPS.forEach(function(c){payload[c]=Array.from(clipState[c].selected).sort(function(a,b){return a-b;});}); fetch('/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(function(r){return r.json();}).then(function(d){ if(d.ok){var el=document.getElementById('saveStatus');el.textContent='✓ Saved';el.style.color='#4CAF50';setTimeout(function(){el.textContent='';},3000);} }).catch(function(err){alert('❌ '+err.message);}); };
 
-    // Button handlers
-    document.querySelectorAll('.play-pause-btn').forEach(function(btn) {
-      btn.onclick = function() { var ws = clipState[btn.dataset.clip].wavesurfer; if (ws) ws.playPause(); };
-    });
-    document.querySelectorAll('.speed-select').forEach(function(sel) {
-      sel.onchange = function() { clipState[sel.dataset.clip].wavesurfer.setPlaybackRate(parseFloat(sel.value)); };
-    });
-    document.querySelectorAll('.clear-btn').forEach(function(btn) {
-      btn.onclick = function() { var c = btn.dataset.clip, state = clipState[c]; state.selected.clear(); state.elements.forEach(function(el, i) { el.classList.remove('selected'); if (state.autoSelected.has(i)) el.classList.add('ai-selected'); }); rebuildClipSkipIntervals(c); updateStats(c); updateBadge(c); };
-    });
-    document.querySelectorAll('.copy-btn').forEach(function(btn) {
-      btn.onclick = function() {
-        var state = clipState[btn.dataset.clip];
-        var words = [];
-        state.words.forEach(function(word, i) {
-          if (word.isGap || state.selected.has(i)) return;
-          words.push(word.text);
-        });
-        var text = words.join(' ');
-        navigator.clipboard.writeText(text).then(function(){alert('Copied speech: ' + words.length + ' word(s)');});
-      };
-    });
-    document.querySelectorAll('.cut-btn').forEach(function(btn) {
-      btn.onclick = function() {
-        var clip = btn.dataset.clip, state = clipState[clip], dur = state.wavesurfer.getDuration(), est = Math.max(5, Math.ceil(dur/4));
-        if (!confirm('Cut ' + clip + '?\nEstimated: ~' + est + 's')) return;
-        var sel = Array.from(state.selected).sort(function(a,b){return a-b;}); showLoading(est);
-        fetch('/cut/'+clip,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selected:sel})})
-        .then(function(r){return r.json();}).then(function(d){hideLoading();alert(d.ok?'✅ '+clip+' → '+d.output:'❌ '+d.error);})
-        .catch(function(err){hideLoading();alert('❌ '+err.message);});
-      };
-    });
-    document.getElementById('cutAllBtn').onclick = function() {
-      var summary = CLIPS.map(function(c){return c+': '+clipState[c].selected.size;}).join('\n');
-      if (!confirm('Cut all?\n\n'+summary)) return;
-      var payload = {}; CLIPS.forEach(function(c){payload[c]=Array.from(clipState[c].selected).sort(function(a,b){return a-b;});}); showLoading(30);
-      fetch('/cut-all',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
-      .then(function(r){return r.json();}).then(function(d){hideLoading();if(d.ok)alert('✅ All cut!');else{var m=Object.entries(d.results).map(function(e){return e[0]+': '+(e[1].ok?'✅':'❌ '+e[1].error);});alert(m.join('\n'));}})
-      .catch(function(err){hideLoading();alert('❌ '+err.message);});
-    };
+// Restore
+fetch('/saved-selections').then(function(r){if(!r.ok) throw 0;return r.json();}).then(function(saved){ CLIPS.forEach(function(c){ if(!saved[c]) return; var s=clipState[c]; s.selected.clear(); saved[c].forEach(function(i){s.selected.add(i);}); rebuildSkipIntervals(c); updateBadge(c); }); renderClip(activeClip); updateStats(activeClip); var el=document.getElementById('saveStatus');el.textContent='↩ Restored';el.style.color='#2196F3';setTimeout(function(){el.textContent='';},4000); }).catch(function(){});
 
-    // Loading overlay helpers
-    var _loadingTimer = null;
-    function showLoading(estSec) {
-      var overlay = document.getElementById('loadingOverlay');
-      overlay.classList.add('show');
-      var start = Date.now();
-      _loadingTimer = setInterval(function() {
-        var elapsed = Math.floor((Date.now()-start)/1000);
-        document.getElementById('loadingTime').textContent = 'Elapsed: '+elapsed+'s';
-        document.getElementById('loadingProgress').style.width = Math.min(95, (elapsed/estSec)*100)+'%';
-      }, 500);
-    }
-    function hideLoading() {
-      clearInterval(_loadingTimer);
-      var overlay = document.getElementById('loadingOverlay');
-      document.getElementById('loadingProgress').style.width = '100%';
-      setTimeout(function(){ overlay.classList.remove('show'); document.getElementById('loadingProgress').style.width='0%'; }, 300);
-    }
-
-    // Save progress
-    function saveProgress() {
-      var payload = {};
-      CLIPS.forEach(function(c) { payload[c] = Array.from(clipState[c].selected).sort(function(a,b){return a-b;}); });
-      fetch('/save', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) })
-      .then(function(r){return r.json();})
-      .then(function(data) {
-        if (data.ok) {
-          CLIPS.forEach(function(c) {
-            var el = document.getElementById('saveStatus-' + c);
-            if (el) { el.textContent = '✓ Saved'; el.style.color = '#4CAF50'; setTimeout(function(){el.textContent='';}, 3000); }
-          });
-        }
-      })
-      .catch(function(err) { alert('❌ Save failed: ' + err.message); });
-    }
-
-    document.getElementById('saveAllBtn').onclick = saveProgress;
-
-    // Auto-restore saved progress on load
-    fetch('/saved-selections')
-      .then(function(r){ if (!r.ok) throw new Error('no saved'); return r.json(); })
-      .then(function(saved) {
-        CLIPS.forEach(function(c) {
-          if (!saved[c]) return;
-          var state = clipState[c];
-          state.selected.clear();
-          saved[c].forEach(function(i){ state.selected.add(i); });
-          rebuildClipSkipIntervals(c);
-          state.elements.forEach(function(el, i) {
-            el.classList.remove('selected', 'ai-selected');
-            if (state.selected.has(i)) el.classList.add('selected');
-            else if (state.autoSelected.has(i)) el.classList.add('ai-selected');
-          });
-          updateStats(c); updateBadge(c);
-          var el = document.getElementById('saveStatus-' + c);
-          if (el) { el.textContent = '↩ Restored'; el.style.color = '#2196F3'; setTimeout(function(){el.textContent='';}, 4000); }
-        });
-      })
-      .catch(function() { /* no saved progress, use AI pre-selection */ });
-
-    // Keyboard shortcuts
-    document.addEventListener('keydown', function(e) {
-      var ws = clipState[activeClip] && clipState[activeClip].wavesurfer;
-      if (e.code === 'Space') { e.preventDefault(); if (ws) ws.playPause(); }
-      else if (e.code === 'ArrowLeft') { if (ws) ws.setTime(Math.max(0, ws.getCurrentTime()-(e.shiftKey?5:1))); }
-      else if (e.code === 'ArrowRight') { if (ws) ws.setTime(ws.getCurrentTime()+(e.shiftKey?5:1)); }
-    });
-  </script>
-</body>
-</html>
+// Keyboard
+document.addEventListener('keydown', function(e) { if(e.code==='Space'){e.preventDefault();if(player.paused)player.play();else player.pause();}else if(e.code==='ArrowLeft'){player.currentTime=Math.max(0,player.currentTime-(e.shiftKey?5:1));}else if(e.code==='ArrowRight'){player.currentTime=player.currentTime+(e.shiftKey?5:1);} });
+</script>
+</body></html>

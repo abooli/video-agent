@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Generate a tabbed review dashboard for a batch of clips.
- * Uses the same wavesurfer.js word-level UI as podcast-rough-cut.
+ * Generate a review dashboard for a batch of clips.
+ * Uses <video> element with rAF+skipLock+gainNode playback.
  *
  * Usage:
  *   node generate_dashboard.js --batch-dir <path> --audio-dir <path> --clips "D1-08,D3-03"
@@ -42,39 +42,11 @@ function main() {
   const templatePath = path.join(__dirname, '..', 'templates', 'dashboard-template.html');
   let html = fs.readFileSync(templatePath, 'utf8');
 
-  // Build sidebar tabs
+  // Build sidebar clip tabs
   const tabButtons = args.clips.map((clip, i) => {
     const count = clipData[clip].autoSelected.length;
     return `    <button class="tab-btn${i === 0 ? ' active' : ''}" data-clip="${clip}">${clip} <span class="badge">${count}</span></button>`;
   }).join('\n');
-
-  // Build per-clip panels
-  const tabPanels = args.clips.map((clip, i) => `
-    <div class="tab-panel${i === 0 ? ' active' : ''}" id="panel-${clip}">
-      <div class="controls">
-        <div class="buttons">
-          <button class="play-pause-btn" data-clip="${clip}">▶️ Play / Pause</button>
-          <select class="speed-select" data-clip="${clip}">
-            <option value="0.5">0.5x</option><option value="0.75">0.75x</option>
-            <option value="1" selected>1x</option><option value="1.25">1.25x</option>
-            <option value="1.5">1.5x</option><option value="2">2x</option>
-          </select>
-          <button class="copy-btn" data-clip="${clip}">📋 Copy Speech</button>
-          <button style="background:#7c3aed" class="cut-btn" data-clip="${clip}">🎬 Cut</button>
-          <button class="danger clear-btn" data-clip="${clip}">🗑️ Clear</button>
-          <span class="time-display" id="time-${clip}">00:00 / 00:00</span>
-          <span id="saveStatus-${clip}" style="font-size:13px;color:#888"></span>
-        </div>
-        <div class="waveform-container" id="waveform-${clip}"></div>
-        <div class="help">
-          <div><b>🖱️</b> Click=jump | Dbl-click=toggle | Shift+drag=batch</div>
-          <div><b>⌨️</b> Space=play | ←→=1s | Shift+←→=5s</div>
-          <div><b>🎨</b> <span style="color:#f59e0b">Orange</span>=AI | <span style="color:#d32f2f">Red</span>=delete</div>
-        </div>
-      </div>
-      <div class="content" id="content-${clip}"></div>
-      <div class="stats" id="stats-${clip}"></div>
-    </div>`).join('\n');
 
   // Inject data
   const dataBlock = `const CLIPS = ${JSON.stringify(args.clips)};
@@ -83,7 +55,6 @@ function main() {
 
   html = html.replaceAll('__BATCH_NAME__', batchName);
   html = html.replace('<!--__TAB_BUTTONS__-->', tabButtons);
-  html = html.replace('<!--__TAB_PANELS__-->', tabPanels);
   html = html.replace('/*__CLIP_DATA__*/', dataBlock);
 
   const outPath = path.join(args.batchDir, 'dashboard.html');

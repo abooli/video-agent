@@ -90,49 +90,15 @@ def main():
 
     data = response.json()
 
-    # Convert Deepgram format → WhisperX-compatible format
-    # Deepgram utterances map cleanly to WhisperX segments
-    utterances = data.get("results", {}).get("utterances", [])
-
-    if not utterances:
-        # Fallback: build one segment from the flat word list
-        alt = data["results"]["channels"][0]["alternatives"][0]
-        words = alt.get("words", [])
-        utterances = [{
-            "start": words[0]["start"] if words else 0,
-            "end": words[-1]["end"] if words else 0,
-            "transcript": alt.get("transcript", ""),
-            "words": words,
-        }] if words else []
-
-    segments = []
-    for utt in utterances:
-        seg_words = []
-        for w in utt.get("words", []):
-            seg_words.append({
-                "word": w.get("punctuated_word", w["word"]),
-                "start": w["start"],
-                "end": w["end"],
-                "score": w.get("confidence", 1.0),
-            })
-        segments.append({
-            "start": utt["start"],
-            "end": utt["end"],
-            "text": utt.get("transcript", ""),
-            "words": seg_words,
-        })
-
-    result = {
-        "segments": segments,
-        "language": language,
-    }
-
+    # Save raw Deepgram JSON (native format)
+    # Downstream scripts read: results.channels[0].alternatives[0].words[]
+    # Each word has: word, punctuated_word, start, end, confidence
     output_file = "deepgram_transcription.json"
     with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(result, f, indent=2, ensure_ascii=False)
+        json.dump(data, f, indent=2, ensure_ascii=False)
 
-    word_count = sum(len(s["words"]) for s in segments)
-    print(f"✅ 转录完成 — {len(segments)} 句段 / {word_count} 个词，已保存 {output_file}")
+    words = data["results"]["channels"][0]["alternatives"][0].get("words", [])
+    print(f"✅ Transcription complete — {len(words)} words, saved {output_file}")
 
 
 if __name__ == "__main__":

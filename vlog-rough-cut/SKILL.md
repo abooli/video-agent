@@ -156,7 +156,7 @@ For each selected clip, run these sub-steps. No Deepgram calls — everything de
 
 #### 3.1: Generate word-level subtitles + sentence list
 
-Convert the storyboard transcript into analysis-ready files. This script handles both Deepgram and WhisperX transcript formats:
+Convert the storyboard transcript into analysis-ready files:
 
 ```bash
 CLIP="D1-08"

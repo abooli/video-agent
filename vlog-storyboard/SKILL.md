@@ -74,24 +74,19 @@ Save to `per_video_context.md`:
 
 ## Step 2: Batch Transcribe
 
-Transcribe ONLY the clips the user listed, found in their day subfolders:
+Transcribe ONLY the clips the user listed using the batch script:
 
 ```bash
-# Example: D1-08 lives at Vlogs/D1/D1-08.mp4 (or .mov)
-# For each clip in the list:
+SKILL_DIR="<path-to-repo>/vlog-storyboard"
 VLOGS_DIR="path/to/Vlogs"
-CLIP="D1-08"
-DAY=$(echo "$CLIP" | grep -oE '^D[0-9]+')
+OUTPUT_DIR="Claude output/storyboard/transcripts"
 
-# Find the file (mp4 or mov)
-FILE=$(find "$VLOGS_DIR/$DAY" -iname "$CLIP.*" | head -1)
-
-# Extract audio + transcribe
-ffmpeg -i "file:$FILE" -vn -acodec libmp3lame -y "${CLIP}_audio.mp3"
-python deepgram_transcribe.py "${CLIP}_audio.mp3" en
+bash "$SKILL_DIR/scripts/batch_transcribe.sh" "$VLOGS_DIR" "$OUTPUT_DIR" D1-08 D3-03 D2-01
+# Output per clip: <clip>_audio.mp3 + <clip>_transcript.json (raw Deepgram JSON)
+# Skips clips that already have transcripts
 ```
 
-⚠️ **Always extract to MP3** (`-acodec libmp3lame`), not M4A. M4A/AAC has seeking and duration reporting issues in Chrome's Web Audio API, which breaks wavesurfer.js playback in the rough-cut dashboard.
+⚠️ **Audio is extracted as MP3** (`-acodec libmp3lame`), not M4A. M4A/AAC has seeking issues in Chrome's Web Audio API.
 
 Then merge all transcripts into one combined file, ordered by the user's clip list:
 

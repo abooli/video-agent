@@ -15,6 +15,7 @@
  *   GET  /                        → dashboard.html
  *   GET  /data/:clip/:file        → clip data files (json, txt, md)
  *   GET  /audio/:filename         → audio files from storyboard transcripts
+ *   GET  /video/:filename         → video files (from vlogs-dir or project root)
  *   POST /cut/:clip               → execute FFmpeg cut for one clip
  *   POST /cut-all                 → execute FFmpeg cut for all clips
  */
@@ -40,6 +41,7 @@ const MIME_TYPES = {
   '.mp3': 'audio/mpeg',
   '.m4a': 'audio/mp4',
   '.mp4': 'video/mp4',
+  '.mov': 'video/quicktime',
   '.js': 'application/javascript',
   '.css': 'text/css',
 };
@@ -290,6 +292,30 @@ const server = http.createServer(async (req, res) => {
         } else {
           sendFile(res, requested, req); // 404
         }
+      }
+      return;
+    }
+
+    // GET /video/:filename → video files (check vlogs-dir subfolders, then project root)
+    const videoMatch = pathname.match(/^\/video\/(.+)$/);
+    if (req.method === 'GET' && videoMatch) {
+      const filename = videoMatch[1];
+      // Try VLOGS_DIR/<day>/<filename>, then VLOGS_DIR/<filename>, then CWD/<filename>
+      const candidates = [];
+      if (VLOGS_DIR) {
+        const dayMatch = filename.match(/^D(\d+)/i);
+        if (dayMatch) candidates.push(path.join(VLOGS_DIR, 'D' + dayMatch[1], filename));
+        candidates.push(path.join(VLOGS_DIR, filename));
+      }
+      candidates.push(path.resolve(filename));
+      const found = candidates.find(f => fs.existsSync(f));
+      if (found) {
+        sendFile(res, found, req);
+      } else {
+        // Try alternate extensions
+        const base = candidates[candidates.length - 1].replace(/\.[^.]+$/, '');
+        const alt = ['.mov', '.mp4', '.MOV', '.MP4'].map(ext => base + ext).find(f => fs.existsSync(f));
+        sendFile(res, alt || candidates[candidates.length - 1], req);
       }
       return;
     }

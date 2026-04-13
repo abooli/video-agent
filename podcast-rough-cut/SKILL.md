@@ -83,7 +83,7 @@ cd "$BASE_DIR/1_transcription"
 # 1. Extract audio (file: prefix needed if filename contains colons)
 ffmpeg -i "file:$VIDEO_PATH" -vn -acodec libmp3lame -y audio.mp3
 
-# 2. Deepgram transcription (output is WhisperX-compatible format)
+# 2. Deepgram transcription (output is native Deepgram JSON)
 SKILL_DIR="<path-to-repo>/podcast-rough-cut"
 python "$SKILL_DIR/scripts/deepgram_transcribe.py" audio.mp3 en
 # Output: deepgram_transcription.json
@@ -91,8 +91,23 @@ python "$SKILL_DIR/scripts/deepgram_transcribe.py" audio.mp3 en
 
 ### Step 3: Generate Word-Level Subtitles
 
+Convert Deepgram native JSON (`results.channels[0].alternatives[0].words[]`) into the word-level timeline format used by all downstream scripts:
+
 ```bash
-node "$SKILL_DIR/scripts/generate_subtitles.js" deepgram_transcription.json
+node -e "
+const fs = require('fs');
+const dg = JSON.parse(fs.readFileSync('deepgram_transcription.json', 'utf8'));
+const rawWords = dg.results.channels[0].alternatives[0].words;
+const out = [];
+for (let i = 0; i < rawWords.length; i++) {
+  const w = rawWords[i];
+  const prevEnd = i > 0 ? rawWords[i-1].end : 0;
+  if (w.start - prevEnd > 0.01) out.push({text:'', start:prevEnd, end:w.start, isGap:true});
+  out.push({text: w.punctuated_word || w.word, start:w.start, end:w.end, isGap:false});
+}
+fs.writeFileSync('subtitles_words.json', JSON.stringify(out, null, 2));
+console.log('subtitles_words.json —', out.filter(w=>!w.isGap).length, 'words,', out.filter(w=>w.isGap).length, 'gaps');
+"
 # Output: subtitles_words.json
 
 cd ..
