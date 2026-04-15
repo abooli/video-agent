@@ -1,15 +1,33 @@
 import os
 import datetime
+import subprocess
 from pathlib import Path
 
 # --- CONFIG ---
 VIDEO_EXTS = {".mp4", ".mov", ".avi", ".mkv", ".m4v", ".mts"}
+SHORT_CLIP_THRESHOLD_SECONDS = 1.0
 
 def get_creation_time(path: Path):
     stat = path.stat()
     # macOS/Windows: birthtime | Linux: mtime
     ts = getattr(stat, "st_birthtime", stat.st_mtime)
     return datetime.datetime.fromtimestamp(ts)
+
+def get_duration(path: Path):
+    """Get video duration in seconds using macOS Spotlight metadata (mdls).
+    Returns None if duration cannot be determined (e.g. not yet indexed)."""
+    try:
+        result = subprocess.run(
+            ["mdls", "-name", "kMDItemDurationSeconds", str(path)],
+            capture_output=True, text=True
+        )
+        # Output: "kMDItemDurationSeconds = 12.345" or "kMDItemDurationSeconds = (null)"
+        value = result.stdout.split("=")[-1].strip()
+        if value == "(null)":
+            return None
+        return float(value)
+    except Exception:
+        return None
 
 def main(folder: Path):
     # 1. Gather all video files
@@ -39,13 +57,21 @@ def main(folder: Path):
     for temp_path, dt in temp_moves:
         current_date = dt.date()
         day_offset = (current_date - start_date).days + 1
-        
+
         day_counters[current_date] = day_counters.get(current_date, 0) + 1
-        new_name = f"D{day_offset}-{day_counters[current_date]:02d}{temp_path.suffix.lower()}"
-        
+        ext = temp_path.suffix.lower()
+        stem = f"D{day_offset}-{day_counters[current_date]:02d}"
+
+        duration = get_duration(temp_path)
+        is_short = duration is not None and duration <= SHORT_CLIP_THRESHOLD_SECONDS
+        flag = "_DEL" if is_short else ""
+
+        new_name = f"{stem}{flag}{ext}"
+
         final_path = temp_path.with_name(new_name)
         temp_path.rename(final_path)
-        print(f"Finalizing: {new_name}")
+        label = f" [short: {duration:.2f}s → flagged DEL]" if is_short else ""
+        print(f"Finalizing: {new_name}{label}")
 
 if __name__ == "__main__":
     # Use your folder path here

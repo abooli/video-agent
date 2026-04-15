@@ -16,18 +16,18 @@ def organize_by_day(folder_path: Path):
         match = day_pattern.match(file_path.name)
         
         if match:
-            # Extract the folder name (e.g., "D1")
-            day_folder_name = match.group(1)
-            day_folder_path = folder_path / day_folder_name
-            
-            # Create the folder if it doesn't exist
-            day_folder_path.mkdir(exist_ok=True)
-            
-            # Define the new location
-            destination = day_folder_path / file_path.name
-            
-            # Move the file
-            print(f"Moving: {file_path.name} -> {day_folder_name}/")
+            # Short clips flagged for deletion go into DEL/ for manual review
+            if file_path.stem.endswith("_DEL"):
+                target_folder = folder_path / "DEL"
+                label = "DEL"
+            else:
+                target_folder = folder_path / match.group(1)
+                label = match.group(1)
+
+            target_folder.mkdir(exist_ok=True)
+            destination = target_folder / file_path.name
+
+            print(f"Moving: {file_path.name} -> {label}/")
             file_path.rename(destination)
             moved_count += 1
 
