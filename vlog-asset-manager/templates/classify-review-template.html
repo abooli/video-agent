@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Footage Classification Review</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #faf9f7;
+      color: #2c2c2c;
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 340px;
+      flex-shrink: 0;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      border-right: 1px solid #e0ddd8;
+      background: #f0eeea;
+      overflow-y: auto;
+    }
+
+    .sidebar h1 {
+      font-family: 'Newsreader', Georgia, serif;
+      font-size: 22px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+
+    .sidebar .subtitle {
+      font-size: 12px;
+      color: #888;
+      margin-top: -8px;
+    }
+
+    #player {
+      width: 100%;
+      border-radius: 8px;
+      background: #000;
+      aspect-ratio: 16/9;
+    }
+
+    .player-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #1a1a1a;
+      text-align: center;
+    }
+
+    .player-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .player-controls button {
+      padding: 6px 14px;
+      background: #3d8c40;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-family: 'Newsreader', Georgia, serif;
+      font-weight: 600;
+    }
+    .player-controls button:hover { background: #357a38; }
+
+    .player-controls select {
+      padding: 6px 10px;
+      background: #fff;
+      color: #2c2c2c;
+      border: 1px solid #d0cdc8;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .player-controls .time-display {
+      font-family: 'SF Mono', 'Consolas', monospace;
+      font-size: 13px;
+      color: #888;
+      margin-left: auto;
+    }
+
+    .summary {
+      display: flex;
+      gap: 8px;
+    }
+
+    .summary-card {
+      flex: 1;
+      background: #fff;
+      border: 1px solid #e0ddd8;
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+    }
+    .summary-card .count {
+      font-size: 22px;
+      font-weight: 600;
+      font-family: 'Newsreader', Georgia, serif;
+    }
+    .summary-card .label {
+      font-size: 10px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .summary-card.a-roll .count { color: #16a34a; }
+    .summary-card.b-roll .count { color: #6366f1; }
+    .summary-card.review .count { color: #f59e0b; }
+
+    .help {
+      font-size: 12px;
+      color: #888;
+      background: #fff;
+      padding: 10px;
+      border-radius: 6px;
+      line-height: 1.8;
+      border: 1px solid #e0ddd8;
+    }
+    .help b { color: #2c2c2c; }
+
+    .sidebar-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: auto;
+    }
+
+    .sidebar-buttons button {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+    }
+    .btn-save { background: #2c2c2c; color: #fff; }
+    .btn-save:hover { background: #444; }
+    .btn-export { background: #16a34a; color: #fff; }
+    .btn-export:hover { background: #15803d; }
+
+    #saveStatus {
+      font-size: 13px;
+      text-align: center;
+      min-height: 18px;
+    }
+
+    /* ── Main panel ── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .filters {
+      display: flex;
+      gap: 8px;
+      padding: 14px 24px;
+      border-bottom: 1px solid #e0ddd8;
+      background: #faf9f7;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .filter-btn {
+      padding: 7px 16px;
+      border: 1px solid #d0cdc8;
+      border-radius: 20px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 13px;
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+      color: #555;
+      transition: all 0.15s;
+    }
+    .filter-btn:hover { border-color: #999; }
+    .filter-btn.active { background: #2c2c2c; color: #fff; border-color: #2c2c2c; }
+
+    .filter-count {
+      margin-left: auto;
+      font-size: 13px;
+      color: #888;
+    }
+
+    .clip-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .clip-card {
+      background: #fff;
+      border: 1px solid #e8e5e0;
+      border-radius: 10px;
+      padding: 14px 18px;
+      display: grid;
+      grid-template-columns: 160px 1fr auto;
+      gap: 14px;
+      align-items: center;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      cursor: pointer;
+    }
+    .clip-card:hover {
+      border-color: #ccc;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .clip-card.active-clip {
+      border-color: #4a9eff;
+      box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.15);
+    }
+
+    .clip-info {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .clip-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: #1a1a1a;
+    }
+    .clip-meta {
+      font-size: 11px;
+      color: #999;
+    }
+
+    .density-bar-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .density-bar {
+      flex: 1;
+      height: 5px;
+      background: #f0eeea;
+      border-radius: 3px;
+      overflow: hidden;
+      max-width: 80px;
+    }
+    .density-fill {
+      height: 100%;
+      border-radius: 3px;
+    }
+    .density-fill.a-roll { background: #16a34a; }
+    .density-fill.b-roll { background: #6366f1; }
+    .density-fill.review { background: #f59e0b; }
+    .density-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: #888;
+    }
+
+    .clip-transcript {
+      font-family: 'Newsreader', Georgia, serif;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #555;
+      font-style: italic;
+    }
+    .clip-transcript.empty {
+      color: #ccc;
+      font-style: normal;
+      font-size: 12px;
+    }
+
+    .clip-actions {
+      display: flex;
+      gap: 5px;
+      flex-direction: column;
+    }
+
+    .tag-btn {
+      padding: 5px 12px;
+      border: 2px solid transparent;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      transition: all 0.15s;
+      background: #f5f4f2;
+      color: #999;
+      min-width: 80px;
+      text-align: center;
+    }
+    .tag-btn:hover { background: #eee; }
+    .tag-btn.a-roll.active { background: #dcfce7; color: #16a34a; border-color: #16a34a; }
+    .tag-btn.b-roll.active { background: #e0e7ff; color: #6366f1; border-color: #6366f1; }
+
+    .day-separator {
+      font-family: 'Newsreader', Georgia, serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: #888;
+      padding: 8px 0 4px;
+      border-bottom: 1px solid #e8e5e0;
+      margin-bottom: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="sidebar">
+    <h1>Classification Review</h1>
+    <p class="subtitle">Review AI tags, preview clips, override where needed</p>
+
+    <video id="player" preload="auto" controls></video>
+    <div class="player-label" id="playerLabel">Click a clip to preview</div>
+    <div class="player-controls">
+      <button id="playBtn">▶️ Play</button>
+      <select id="speed">
+        <option value="0.5">0.5x</option>
+        <option value="0.75">0.75x</option>
+        <option value="1" selected>1x</option>
+        <option value="1.25">1.25x</option>
+        <option value="1.5">1.5x</option>
+        <option value="2">2x</option>
+      </select>
+      <span class="time-display" id="time">0:00 / 0:00</span>
+    </div>
+
+    <div class="summary" id="summary"></div>
+
+    <div class="help">
+      <div><b>🖱️</b> Click card = preview clip</div>
+      <div><b>⌨️</b> Space = play/pause | ←→ = skip 2s</div>
+      <div><b>🏷️</b> Click A-Roll / B-Roll to override AI tag</div>
+    </div>
+
+    <div class="sidebar-buttons">
+      <button class="btn-save" id="saveBtn">💾 Save Classifications</button>
+      <button class="btn-export" id="exportBtn">📤 Export A-Roll / B-Roll Lists</button>
+    </div>
+    <div id="saveStatus"></div>
+  </div>
+
+  <div class="main">
+    <div class="filters" id="filters">
+      <button class="filter-btn active" data-filter="review">🔍 Review Needed</button>
+      <button class="filter-btn" data-filter="a-roll">✅ A-Roll</button>
+      <button class="filter-btn" data-filter="b-roll">🎬 B-Roll</button>
+      <button class="filter-btn" data-filter="all">All</button>
+      <span class="filter-count" id="filterCount"></span>
+    </div>
+    <div class="clip-list" id="clips"></div>
+  </div>
+
+<script>
+// ── Data injected by review server ──
+/*__CLASSIFY_DATA__*/
+
+// ── State ──
+var clips = CLASSIFY_DATA.clips.map(function(c) { return Object.assign({}, c, { override: null }); });
+var activeFilter = 'review';
+var activeClipIdx = -1;
+var player = document.getElementById('player');
+
+// ── Restore saved overrides ──
+fetch('/api/overrides').then(function(r) {
+  if (!r.ok) throw 0;
+  return r.json();
+}).then(function(saved) {
+  if (!saved || !saved.overrides) return;
+  saved.overrides.forEach(function(o) {
+    var idx = clips.findIndex(function(c) { return c.file === o.file; });
+    if (idx >= 0 && o.override) clips[idx].override = o.override;
+  });
+  render();
+  showStatus('↩ Restored saved overrides', '#2196F3');
+}).catch(function() {});
+
+// ── Video player ──
+function loadClipVideo(idx) {
+  activeClipIdx = idx;
+  var clip = clips[idx];
+  // Build video URL — the server resolves the file path
+  player.src = '/video/' + encodeURIComponent(clip.file);
+  player.load();
+  document.getElementById('playerLabel').textContent = clip.file;
+  renderClips();
+}
+
+player.addEventListener('timeupdate', function() {
+  document.getElementById('time').textContent =
+    formatTimeShort(player.currentTime) + ' / ' + formatTimeShort(player.duration || 0);
+});
+
+document.getElementById('playBtn').onclick = function() {
+  if (player.paused) player.play(); else player.pause();
+};
+
+document.getElementById('speed').onchange = function() {
+  player.playbackRate = parseFloat(this.value);
+};
+
+// Keyboard
+document.addEventListener('keydown', function(e) {
+  if (e.code === 'Space') { e.preventDefault(); if (player.paused) player.play(); else player.pause(); }
+  else if (e.code === 'ArrowLeft') { player.currentTime = Math.max(0, player.currentTime - (e.shiftKey ? 5 : 2)); }
+  else if (e.code === 'ArrowRight') { player.currentTime = player.currentTime + (e.shiftKey ? 5 : 2); }
+});
+
+// ── Helpers ──
+function getEffectiveClass(clip) {
+  return clip.override || clip.classification;
+}
+
+function formatTimeShort(sec) {
+  if (isNaN(sec)) return '0:00';
+  var m = Math.floor(sec / 60);
+  var s = Math.floor(sec % 60);
+  return m + ':' + String(s).padStart(2, '0');
+}
+
+function formatDuration(sec) {
+  if (sec >= 60) {
+    var m = Math.floor(sec / 60);
+    var s = Math.round(sec % 60);
+    return m + 'm ' + s + 's';
+  }
+  return sec.toFixed(1) + 's';
+}
+
+function getDayFromFile(file) {
+  var m = file.match(/D(\d+)/);
+  return m ? 'D' + m[1] : null;
+}
+
+function showStatus(msg, color) {
+  var el = document.getElementById('saveStatus');
+  el.textContent = msg;
+  el.style.color = color || '#888';
+  setTimeout(function() { el.textContent = ''; }, 4000);
+}
+
+// ── Render ──
+function renderSummary() {
+  var counts = { 'a-roll': 0, 'b-roll': 0, 'review': 0 };
+  var durations = { 'a-roll': 0, 'b-roll': 0, 'review': 0 };
+  clips.forEach(function(c) {
+    var cls = getEffectiveClass(c);
+    counts[cls]++;
+    durations[cls] += c.duration;
+  });
+
+  document.getElementById('summary').innerHTML =
+    '<div class="summary-card a-roll">' +
+      '<div class="count">' + counts['a-roll'] + '</div>' +
+      '<div class="label">A-Roll · ' + formatDuration(durations['a-roll']) + '</div>' +
+    '</div>' +
+    '<div class="summary-card b-roll">' +
+      '<div class="count">' + counts['b-roll'] + '</div>' +
+      '<div class="label">B-Roll · ' + formatDuration(durations['b-roll']) + '</div>' +
+    '</div>' +
+    '<div class="summary-card review">' +
+      '<div class="count">' + counts['review'] + '</div>' +
+      '<div class="label">Review · ' + formatDuration(durations['review']) + '</div>' +
+    '</div>';
+}
+
+function renderClips() {
+  var container = document.getElementById('clips');
+  container.innerHTML = '';
+
+  var visible = clips.map(function(c, i) { return Object.assign({}, c, { _idx: i }); }).filter(function(c) {
+    if (activeFilter === 'all') return true;
+    return getEffectiveClass(c) === activeFilter;
+  });
+
+  document.getElementById('filterCount').textContent =
+    visible.length + ' of ' + clips.length + ' clips';
+
+  if (visible.length === 0) {
+    container.innerHTML = '<p style="text-align:center;color:#999;padding:40px;font-style:italic;">No clips in this category.</p>';
+    return;
+  }
+
+  var lastDay = null;
+  visible.forEach(function(clip) {
+    var cls = getEffectiveClass(clip);
+    var densityPct = (clip.speech_density * 100).toFixed(1);
+    var day = getDayFromFile(clip.file);
+
+    if (day && day !== lastDay) {
+      lastDay = day;
+      var sep = document.createElement('div');
+      sep.className = 'day-separator';
+      sep.textContent = '📅 ' + day;
+      container.appendChild(sep);
+    }
+
+    var card = document.createElement('div');
+    card.className = 'clip-card' + (clip._idx === activeClipIdx ? ' active-clip' : '');
+    card.innerHTML =
+      '<div class="clip-info">' +
+        '<div class="clip-name">' + clip.file.replace(/^D\d+\//, '') + '</div>' +
+        '<div class="clip-meta">' + formatDuration(clip.duration) + ' · ' + clip.word_count + ' words</div>' +
+        '<div class="density-bar-container">' +
+          '<div class="density-bar">' +
+            '<div class="density-fill ' + cls + '" style="width:' + Math.min(parseFloat(densityPct), 100) + '%"></div>' +
+          '</div>' +
+          '<span class="density-label">' + densityPct + '% speech</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="clip-transcript ' + (clip.snippet ? '' : 'empty') + '">' +
+        (clip.snippet ? '"' + clip.snippet + '"' : '(no speech detected)') +
+      '</div>' +
+      '<div class="clip-actions">' +
+        '<button class="tag-btn a-roll ' + (cls === 'a-roll' ? 'active' : '') + '" data-idx="' + clip._idx + '" data-tag="a-roll">A-Roll</button>' +
+        '<button class="tag-btn b-roll ' + (cls === 'b-roll' ? 'active' : '') + '" data-idx="' + clip._idx + '" data-tag="b-roll">B-Roll</button>' +
+      '</div>';
+
+    card.addEventListener('click', function(e) {
+      if (e.target.closest('.tag-btn')) return;
+      loadClipVideo(clip._idx);
+    });
+
+    container.appendChild(card);
+  });
+}
+
+function render() {
+  renderSummary();
+  renderClips();
+}
+
+// ── Events ──
+document.getElementById('clips').addEventListener('click', function(e) {
+  var btn = e.target.closest('.tag-btn');
+  if (!btn) return;
+
+  var idx = parseInt(btn.dataset.idx);
+  var tag = btn.dataset.tag;
+  var clip = clips[idx];
+
+  if (getEffectiveClass(clip) === tag) {
+    clip.override = clip.classification === tag ? null : clip.classification;
+  } else {
+    clip.override = tag;
+  }
+
+  render();
+});
+
+document.getElementById('filters').addEventListener('click', function(e) {
+  var btn = e.target.closest('.filter-btn');
+  if (!btn) return;
+
+  document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  activeFilter = btn.dataset.filter;
+  renderClips();
+});
+
+document.getElementById('saveBtn').addEventListener('click', function() {
+  var payload = clips.map(function(c) {
+    return {
+      file: c.file,
+      ai_classification: c.classification,
+      final_classification: getEffectiveClass(c),
+      override: c.override,
+    };
+  });
+
+  fetch('/api/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ overrides: payload }),
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.ok) showStatus('✓ Saved ' + d.count + ' classifications', '#4CAF50');
+    else showStatus('❌ ' + (d.error || 'Save failed'), '#d32f2f');
+  }).catch(function(err) {
+    showStatus('❌ ' + err.message, '#d32f2f');
+  });
+});
+
+document.getElementById('exportBtn').addEventListener('click', function() {
+  var reviews = clips.filter(function(c) { return getEffectiveClass(c) === 'review'; });
+  if (reviews.length > 0) {
+    if (!confirm(reviews.length + ' clips still unresolved. Export anyway?')) return;
+  }
+
+  fetch('/api/export', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) {
+        showStatus('✓ Exported to ' + d.output, '#16a34a');
+        alert('📤 Exported!\n\nA-Roll: ' + d.a_roll_count + ' clips\nB-Roll: ' + d.b_roll_count + ' clips\n\nSaved to: ' + d.output);
+      } else {
+        showStatus('❌ ' + (d.error || 'Export failed'), '#d32f2f');
+      }
+    }).catch(function(err) {
+      showStatus('❌ ' + err.message, '#d32f2f');
+    });
+});
+
+// ── Init ──
+render();
+</script>
+</body>
+</html>

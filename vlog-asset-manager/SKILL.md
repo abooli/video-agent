@@ -1,6 +1,6 @@
 ---
 name: vlog-asset-manager
-description: "Scans video project folders, renames clips by creation timestamp and sorts them into day folders. Reversible via reset script. Trigger words: organize clips, sort videos, rename clips"
+description: "Scans video project folders, renames clips by creation timestamp, sorts them into day folders (flagging short clips as DEL for review), and classifies A-Roll vs B-Roll using speech detection. Two-phase workflow: organize first, then classify after user reviews DEL folder. Trigger words: organize clips, sort videos, rename clips, classify footage, a-roll, b-roll"
 ---
 
 <!--
@@ -29,6 +29,9 @@ Renames video clips by creation timestamp and sorts them into day-based folders.
 │   │   ├── A Rolls/
 │   │   └── B Rolls/
 │   ├── Vlogs/        # Raw clips from DJI & phone go here
+│   │   ├── D1/       # Day folders created by sort script
+│   │   ├── D2/
+│   │   └── DEL/      # Short clips flagged for manual review
 │   └── Thumbnails/   # Temporary thumbnail assets
 ```
 
@@ -39,12 +42,16 @@ Renames video clips by creation timestamp and sorts them into day-based folders.
 | `scripts/rename-video-assets.py` | Renames clips to `D{day}-{seq}` format based on creation time |
 | `scripts/sort-video-into-folders.py` | Moves renamed clips into `D1/`, `D2/`, etc. folders |
 | `scripts/reset.py` | Randomizes filenames to undo renaming (reversibility) |
+| `scripts/classify-footage.py` | Classifies clips as A-Roll / B-Roll / Review using Deepgram speech detection |
+| `scripts/classify_review_server.js` | Serves review UI with video preview for overriding classifications |
 
 Supported extensions: `.mp4`, `.mov`, `.avi`, `.mkv`, `.m4v`, `.mts`
 
 ## Flow
 
 ```
+Phase 1 — Organize (run together)
+──────────────────────────────────
 1. User provides folder path (typically the Vlogs/ folder)
        ↓
 2. rename-video-assets.py
@@ -52,11 +59,32 @@ Supported extensions: `.mp4`, `.mov`, `.avi`, `.mkv`, `.m4v`, `.mts`
    - Sorts all files chronologically
    - Two-pass rename (temp names first, then final D1-01 names)
    - Avoids collisions by clearing the namespace first
+   - Clips ≤1 second are flagged with _DEL suffix
        ↓
 3. sort-video-into-folders.py
    - Moves D1-* files into D1/ folder, D2-* into D2/, etc.
+   - _DEL clips are routed to a DEL/ folder for manual review
+
+⏸ STOP — Wait for user before continuing.
+   The user should review the DEL/ folder and delete or rescue clips.
+   Do NOT proceed to Phase 2 until the user explicitly asks.
+
+Phase 2 — Classify (run together, on user request)
+───────────────────────────────────────────────────
+4. classify-footage.py (optional but recommended)
+   - Extracts audio from each clip, sends to Deepgram
+   - Computes speech density per clip
+   - Classifies: >50% speech = A-Roll, <5% = B-Roll, between = Review
+   - Outputs classify_result.json
        ↓
-4. (If needed) reset.py
+5. classify_review_server.js
+   - Serves review UI with video preview
+   - User overrides ambiguous clips (in-action A-Rolls, etc.)
+   - Exports final A-Roll / B-Roll file lists
+
+Utility
+───────
+6. (If needed) reset.py
    - Renames all files to random 4-digit numbers
    - Use this to undo and start over
 ```
@@ -71,7 +99,7 @@ python "$SKILL_DIR/scripts/rename-video-assets.py"
 # Enter folder path when prompted
 ```
 
-Output: `D1-01.mp4`, `D1-02.mov`, `D2-01.mp4`, etc.
+Output: `D1-01.mp4`, `D1-02.mov`, `D2-01.mp4`, etc. Clips ≤1 second get a `_DEL` suffix (e.g. `D1-03_DEL.mov`).
 
 ### Step 2: Sort into day folders
 
@@ -80,9 +108,44 @@ python "$SKILL_DIR/scripts/sort-video-into-folders.py"
 # Enter the same folder path when prompted
 ```
 
-Output: files moved into `D1/`, `D2/`, etc. subfolders.
+Output: files moved into `D1/`, `D2/`, etc. subfolders. `_DEL` clips go into a `DEL/` folder.
 
-### Step 3: Undo (if needed)
+**⏸ Stop here.** Review the `DEL/` folder and delete or rescue clips before proceeding to classification.
+
+### Step 3: Classify A-Roll vs B-Roll
+
+```bash
+python "$SKILL_DIR/scripts/classify-footage.py" /path/to/Vlogs
+```
+
+This transcribes all clips via Deepgram (~$1.80 for 7 hours of footage) and classifies them by speech density:
+- **A-Roll** (>50% speech): sit-down talking clips
+- **B-Roll** (<5% speech): scenic/action footage
+- **Review** (5–50%): ambiguous clips (in-action A-Rolls, short reactions)
+
+Output: `classify_result.json` in the target folder.
+
+Options:
+- `--language zh` — for non-English footage
+- `--workers 5` — increase parallel transcription (default: 3)
+- `--a-roll-threshold 0.40` — lower the A-Roll cutoff
+- `--b-roll-threshold 0.10` — raise the B-Roll cutoff
+
+### Step 4: Review ambiguous clips
+
+```bash
+node "$SKILL_DIR/scripts/classify_review_server.js" /path/to/Vlogs/classify_result.json
+# Open http://localhost:8877
+```
+
+The review UI shows:
+- Video preview in the sidebar (click any clip card to load it)
+- Transcript snippets for quick context
+- A-Roll / B-Roll toggle buttons to override the AI classification
+- Save persists overrides to `classify_overrides.json`
+- Export writes final `classify_export.json` with A-Roll and B-Roll file lists
+
+### Step 5: Undo (if needed)
 
 ```bash
 python "$SKILL_DIR/scripts/reset.py"
